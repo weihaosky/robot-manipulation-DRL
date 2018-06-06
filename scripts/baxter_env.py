@@ -17,6 +17,9 @@ class Baxter(object):
         self.kdl_tree = kdl_tree_from_urdf_model(self.baxter)
         self.base_link = self.baxter.get_root()
 
+        self.right_limb_interface = baxter_interface.Limb('right')
+        self.left_limb_interface = baxter_interface.Limb('left')
+
         # Verify robot is enabled
         print("Getting robot state... ")
         self._rs = baxter_interface.RobotEnable()
@@ -26,11 +29,11 @@ class Baxter(object):
 
     def reset(self):
         print "Resetting Baxter...",
-        limb = 'right'
-        limb_interface = baxter_interface.Limb(limb)
+        # limb = 'right'
+        # limb_interface = baxter_interface.Limb(limb)
 
         # Joint position control
-        limb_interface.move_to_neutral(timeout=10.0)
+        self.right_limb_interface.move_to_neutral(timeout=10.0)
 
         print "done"
 
@@ -41,7 +44,7 @@ class Baxter(object):
         cylinder2 = (0.5, 0.0, 0.5)
 
         limb = 'right'
-        limb_pose, _ = limbPose(self.kdl_tree, self.base_link, limb)
+        limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, limb)
         w = GLI(cylinder1, cylinder2, limb_pose[5], limb_pose[7])[0] + \
             GLI(cylinder1, cylinder2, limb_pose[7], limb_pose[8])[0] + \
             GLI(cylinder1, cylinder2, limb_pose[8], limb_pose[9])[0]
@@ -53,8 +56,8 @@ class Baxter(object):
 
 
     def getstate(self):
-        right_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, 'right')
-        left_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, 'left')
+        right_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
+        left_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
         right_joint = [right_joint_pos[0], right_joint_pos[1], right_joint_pos[2], right_joint_pos[3], right_joint_pos[4], right_joint_pos[5], right_joint_pos[6]]
         state1 = np.asarray(right_joint)
         state2 = np.asarray(right_pose[3:]).flatten()
@@ -63,28 +66,31 @@ class Baxter(object):
 
     def act(self, action):
 
-        limb = 'right'
-        limb_interface = baxter_interface.Limb(limb)
+        # limb = 'right'
+        # limb_interface = baxter_interface.Limb(limb)
         cmd = dict()
-        for i, joint in enumerate(limb_interface.joint_names()):
+        for i, joint in enumerate(self.right_limb_interface.joint_names()):
             cmd[joint] = action[i]
 
         # Joint torque control
         # limb_interface.set_joint_torques(cmd)
 
         # Joint position control
-        limb_interface.move_to_joint_positions(cmd, timeout=2.0)
+        try:
+            self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
+        except Exception, e:
+            rospy.logerr('Error: %s', str(e))
 
 
 
 
-def limbPose(kdl_tree, base_link, limb = 'right'):
+def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
     tip_link = limb + '_gripper'
     tip_frame = PyKDL.Frame()
     arm_chain = kdl_tree.getChain(base_link, tip_link)
 
     # Baxter Interface Limb Instances
-    limb_interface = baxter_interface.Limb(limb)
+    #limb_interface = baxter_interface.Limb(limb)
     joint_names = limb_interface.joint_names()
     num_jnts = len(joint_names)
 
@@ -109,6 +115,10 @@ def limbPose(kdl_tree, base_link, limb = 'right'):
 
     # get the joint positions
     cur_type_values = limb_interface.joint_angles()
+    while len(cur_type_values) != 7:
+        #IPython.embed()
+        print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        cur_type_values = limb_interface.joint_angles()
     kdl_array = PyKDL.JntArray(num_jnts)
     for idx, name in enumerate(joint_names):
         kdl_array[idx] = cur_type_values[name]

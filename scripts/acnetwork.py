@@ -110,12 +110,12 @@ class ACNet(nn.Module):
         a_log_probs = a_dist.log_prob(action)
         a_dist_entropy = a_dist.entropy()
 
-        print "action_mu:",
-        print action_mu
-        print "action_sigma:",
-        print action_sigma
-        print "value:",
-        print value
+        # print "action_mu:",
+        # print action_mu
+        # print "action_sigma:",
+        # print action_sigma
+        # print "value:",
+        # print value
 
         return value, action, a_log_probs, a_dist_entropy, (hx, cx)
 

@@ -13,14 +13,14 @@ import argparse
 
 
 
-parser = argparse.ArgumentParser(description='A3C')
-parser.add_argument('--seed', type=int, default=1, metavar='S',
-                    help='random seed (default: 1)')
+#parser = argparse.ArgumentParser(description='A3C')
+#parser.add_argument('--seed', type=int, default=1, metavar='S',
+#                    help='random seed (default: 1)')
 
 if __name__ == '__main__':
-    args = parser.parse_args()
+    #args = parser.parse_args()
 
-    torch.manual_seed(args.seed)
+    torch.manual_seed(1)
 
     use_cuda = True
 
