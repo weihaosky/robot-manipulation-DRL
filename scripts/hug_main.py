@@ -42,6 +42,10 @@ if __name__ == '__main__':
     episode_num = 0
     done = False
 
+    model_path = "./model_baxter_net/"
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+
     while not rospy.is_shutdown():
 
         episode_num += 1
@@ -54,7 +58,7 @@ if __name__ == '__main__':
         # Calculate writhe before this episode
         _, w = env.reward_evaluation(0)
 
-        for step in range(20):
+        for step in range(50):
             print "episode: %d, step:%d" % (episode_num, step+1)
             state = env.getstate()
             value, action, action_log_prob, action_entropy, (agent.actor_critic.hx, agent.actor_critic.cx) = \
@@ -62,7 +66,7 @@ if __name__ == '__main__':
             print "action:",
             print action
 
-            env.act(0.5*action.cpu().numpy().squeeze())
+            env.act(0.2*action.cpu().numpy().squeeze())
             reward, w = env.reward_evaluation(w)
             print "reward:%f" % reward
 
@@ -78,6 +82,11 @@ if __name__ == '__main__':
         agent.update(rollouts)
 
         rollouts.clear()
+
+        if episode_num % 200 == 0:
+            print "saving model..."
+            torch.save(agent.actor_critic.network.state_dict(), model_path + 'model-' + str(episode_num) + '.pt')
+            # torch.save(target_net.state_dict(), model_path + 'model_t-' + str(episode_num) + '.pt')
 
 
 
