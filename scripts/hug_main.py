@@ -39,12 +39,23 @@ if __name__ == '__main__':
 
     # Begin to work!
     env.reset()
-    episode_num = 0
     done = False
 
     model_path = "./model_baxter_net/"
     if not os.path.exists(model_path):
         os.makedirs(model_path)
+
+    # Resume from models before
+    resume = True  # whether load previous model
+    if resume:
+        print ('Loading Model...')
+        agent.actor_critic.network.load_state_dict(torch.load(model_path + "model-200.pt"))
+        # target_net.load_state_dict(torch.load(model_path + "model_t-5000.pt"))
+        episode_num = 200
+        # OBSERVE = 5100
+    else:
+        episode_num = 0
+
 
     while not rospy.is_shutdown():
 
