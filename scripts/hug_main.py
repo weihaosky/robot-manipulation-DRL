@@ -13,14 +13,18 @@ import argparse
 
 
 
-#parser = argparse.ArgumentParser(description='A3C')
-#parser.add_argument('--seed', type=int, default=1, metavar='S',
-#                    help='random seed (default: 1)')
+parser = argparse.ArgumentParser(description='A2C')
+parser.add_argument('--seed', type=int, default=1, metavar='S',
+                   help='random seed (default: 1)')
+parser.add_argument('--resume', type=bool, default=False, metavar='R',
+                    help='if resume from previous model (default: No)')
+
 
 if __name__ == '__main__':
-    #args = parser.parse_args()
+    args = parser.parse_args(rospy.myargv()[1:])
 
-    torch.manual_seed(1)
+    torch.manual_seed(args.seed)
+    resume = args.resume  # whether load previous model
 
     use_cuda = True
 
@@ -46,7 +50,6 @@ if __name__ == '__main__':
         os.makedirs(model_path)
 
     # Resume from models before
-    resume = True  # whether load previous model
     if resume:
         print ('Loading Model...')
         agent.actor_critic.network.load_state_dict(torch.load(model_path + "model-200.pt"))
@@ -79,7 +82,8 @@ if __name__ == '__main__':
 
             env.act(0.2*action.cpu().numpy().squeeze())
             reward, w = env.reward_evaluation(w)
-            print "reward:%f" % reward
+            print "reward:%f" % reward,
+            print "w:%f" % w
 
             rollouts.insert(state, action, action_log_prob, action_entropy, reward, value)
 

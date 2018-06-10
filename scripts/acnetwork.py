@@ -12,22 +12,19 @@ import numpy as np
 from collections import deque
 import IPython
 
+from utils import init, init_normc_
 
 
-class ReplayBuffer():
-    REPLAY_MEMORY = 150000 # number of previous transitions to remember
-    def __init__(self):
-        self.replayMemory = deque()
-    def setPerception(self, currentState, action, reward, nextState, terminal):
-        self.replayMemory.append((currentState, action, reward, nextState, terminal))
-        if len(self.replayMemory) > self.REPLAY_MEMORY:
-            self.replayMemory.popleft()
 
-
-class Network(nn.Module):
+class MLPBase(nn.Module):
 
     def __init__(self, state_shape, action_dim, lstm_size, use_cuda, name=''):
-        super(Network, self).__init__()
+        super(MLPBase, self).__init__()
+
+        init_ = lambda m: init(m,
+                               init_normc_,
+                               lambda x: nn.init.constant_(x, 0))
+
         self.state_shape = state_shape
         self.action_dim = action_dim
         self.lstm_size = lstm_size
@@ -46,13 +43,18 @@ class Network(nn.Module):
         # self.max4 = nn.MaxPool2d(2)
         # # self.bn6 = nn.BatchNorm2d(128)
         
-        self.hidden11 = nn.Linear(self.state_shape[0], 512)
-        self.hidden12 = nn.Linear(self.state_shape[1], 512)
-        self.hidden2 = nn.Linear(1024, 512)
+        self.hidden11 = init_(nn.Linear(self.state_shape[0], 512))
+        self.hidden12 = init_(nn.Linear(self.state_shape[1], 512))
+        self.hidden2 = init_(nn.Linear(1024, 512))
         self.lstm = nn.LSTMCell(512, self.lstm_size)
-        self.action_head = nn.Linear(self.lstm_size, self.action_dim)
-        self.action_sigma = nn.Linear(self.lstm_size, self.action_dim)
-        self.value_head = nn.Linear(self.lstm_size, 1)
+        self.action_head = init_(nn.Linear(self.lstm_size, self.action_dim))
+        self.action_sigma = init_(nn.Linear(self.lstm_size, self.action_dim))
+        self.value_head = init_(nn.Linear(self.lstm_size, 1))
+
+
+        self.lstm.bias_ih.data.fill_(0)
+        self.lstm.bias_hh.data.fill_(0)
+
 
     def forward(self, x, (hx, cx)):
         # x = x.float().div(255.0)
@@ -91,7 +93,7 @@ class ACNet(nn.Module):
         self.lstm_size = 64
         self.state_shape = [7, 30]
         self.action_dim = 7
-        self.network = Network(state_shape = self.state_shape, action_dim = self.action_dim, \
+        self.network = MLPBase(state_shape = self.state_shape, action_dim = self.action_dim, \
                                lstm_size = self.lstm_size, use_cuda = self.use_cuda)
         self.cx = Variable(torch.zeros(1, self.lstm_size))
         self.hx = Variable(torch.zeros(1, self.lstm_size))
@@ -187,7 +189,7 @@ class A2Cagent(object):
 
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm(self.actor_critic.parameters(), 40)
+        torch.nn.utils.clip_grad_norm_(self.actor_critic.parameters(), 40)
         self.optimizer.step()
 
 
@@ -217,6 +219,23 @@ class Rollouts(object):
         self.entropies = []
         self.values = []
 
+
+
+
+
+
+
+
+
+
+class ReplayBuffer():
+    REPLAY_MEMORY = 150000 # number of previous transitions to remember
+    def __init__(self):
+        self.replayMemory = deque()
+    def setPerception(self, currentState, action, reward, nextState, terminal):
+        self.replayMemory.append((currentState, action, reward, nextState, terminal))
+        if len(self.replayMemory) > self.REPLAY_MEMORY:
+            self.replayMemory.popleft()
 
 
 def train(T_net, P_net, buffer):
