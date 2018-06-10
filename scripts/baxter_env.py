@@ -56,12 +56,28 @@ class Baxter(object):
 
 
     def getstate(self):
+        cylinder1 = (0.5, 0.0, -1.0)
+        cylinder2 = (0.5, 0.0, 0.5)
+
         right_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
         right_joint = [right_joint_pos[0], right_joint_pos[1], right_joint_pos[2], right_joint_pos[3], right_joint_pos[4], right_joint_pos[5], right_joint_pos[6]]
+
+        # right limb joint positions
         state1 = np.asarray(right_joint)
+
+        # right limb link cartesian positions
         state2 = np.asarray(right_pose[3:]).flatten()
-        state = [state1, state2]
+
+        # hugging target -- cylinder
+        state3 = np.asarray([cylinder1, cylinder2]).flatten()
+
+        # writhe matrix
+        state4 = np.asarray([GLI(cylinder1, cylinder2, right_pose[5], right_pose[7])[0], \
+                            GLI(cylinder1, cylinder2, right_pose[7], right_pose[8])[0], \
+                            GLI(cylinder1, cylinder2, right_pose[8], right_pose[9])[0]]).flatten()
+
+        state = [state1, state2, state3, state4]
         return state
 
     def act(self, action):
@@ -116,7 +132,6 @@ def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
     # get the joint positions
     cur_type_values = limb_interface.joint_angles()
     while len(cur_type_values) != 7:
-        #IPython.embed()
         print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         cur_type_values = limb_interface.joint_angles()
     kdl_array = PyKDL.JntArray(num_jnts)

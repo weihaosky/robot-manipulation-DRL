@@ -43,20 +43,20 @@ class MLPBase(nn.Module):
         # self.max4 = nn.MaxPool2d(2)
         # # self.bn6 = nn.BatchNorm2d(128)
         
-        self.hidden11 = init_(nn.Linear(self.state_shape[0], 512))
-        self.hidden12 = init_(nn.Linear(self.state_shape[1], 512))
+        self.hidden11 = init_(nn.Linear(self.state_shape[0], 256))
+        self.hidden12 = init_(nn.Linear(self.state_shape[1] + self.state_shape[2], 512))
+        self.hidden13 = init_(nn.Linear(self.state_shape[3], 256))
         self.hidden2 = init_(nn.Linear(1024, 512))
         self.lstm = nn.LSTMCell(512, self.lstm_size)
         self.action_head = init_(nn.Linear(self.lstm_size, self.action_dim))
         self.action_sigma = init_(nn.Linear(self.lstm_size, self.action_dim))
         self.value_head = init_(nn.Linear(self.lstm_size, 1))
 
-
         self.lstm.bias_ih.data.fill_(0)
         self.lstm.bias_hh.data.fill_(0)
 
 
-    def forward(self, x, (hx, cx)):
+    def forward(self, state, (hx, cx)):
         # x = x.float().div(255.0)
         # x = F.relu(self.conv1(x))
         # x = F.max_pool2d(F.relu(self.conv2(x)), (2, 2))
@@ -67,15 +67,17 @@ class MLPBase(nn.Module):
         # x = self.max4(x)
         # x = x.view(-1, 8*8*128)
         # x, (hx,cx) = inputs
-        # IPython.embed()
-        x1 = Variable(torch.from_numpy(x[0])).float()
-        x2 = Variable(torch.from_numpy(x[1])).float()
+        x1 = Variable(torch.from_numpy(state[0])).float()
+        x2 = Variable(torch.cat((torch.from_numpy(state[1]), torch.from_numpy(state[2])), -1).float())
+        x3 = Variable(torch.from_numpy(state[3])).float()
         if self.use_cuda:
             x1 = x1.cuda()
             x2 = x2.cuda()
+            x3 = x3.cuda()
         x1 = F.relu(self.hidden11(x1))
         x2 = F.relu(self.hidden12(x2))
-        x = torch.cat((x1, x2), -1)
+        x3 = F.relu(self.hidden13(x3))
+        x = torch.cat((x1, x2, x3), -1)
         x = F.relu(self.hidden2(x))
         x = x.view(-1, 512)
         hx, cx = self.lstm(x, (hx, cx))
@@ -91,7 +93,7 @@ class ACNet(nn.Module):
         super(ACNet, self).__init__()
         self.use_cuda = use_cuda
         self.lstm_size = 64
-        self.state_shape = [7, 30]
+        self.state_shape = [7, 30, 6, 3]
         self.action_dim = 7
         self.network = MLPBase(state_shape = self.state_shape, action_dim = self.action_dim, \
                                lstm_size = self.lstm_size, use_cuda = self.use_cuda)
@@ -112,12 +114,12 @@ class ACNet(nn.Module):
         a_log_probs = a_dist.log_prob(action)
         a_dist_entropy = a_dist.entropy()
 
-        # print "action_mu:",
-        # print action_mu
-        # print "action_sigma:",
-        # print action_sigma
-        # print "value:",
-        # print value
+        print "action_mu:",
+        print action_mu
+        print "action_sigma:",
+        print action_sigma
+        print "value:",
+        print value
 
         return value, action, a_log_probs, a_dist_entropy, (hx, cx)
 

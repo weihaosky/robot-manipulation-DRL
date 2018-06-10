@@ -8,6 +8,7 @@ import IPython
 import numpy as np
 import time
 
+import pickle
 import argparse
 
 
@@ -16,7 +17,7 @@ import argparse
 parser = argparse.ArgumentParser(description='A2C')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                    help='random seed (default: 1)')
-parser.add_argument('--resume', type=bool, default=False, metavar='R',
+parser.add_argument('--resume', type=int, default=0, metavar='R',
                     help='if resume from previous model (default: No)')
 
 
@@ -41,24 +42,31 @@ if __name__ == '__main__':
     agent = A2Cagent(actor_critic, lr = 1e-4)
     rollouts = Rollouts()
 
-    # Begin to work!
-    env.reset()
-    done = False
-
+    # Save the training models
     model_path = "./model_baxter_net/"
     if not os.path.exists(model_path):
         os.makedirs(model_path)
 
+    # Record training information
+    record_path = "./training_record/"
+    if not os.path.exists(record_path):
+        os.makedirs(record_path)
+    Record = []
+
+    # Begin to work!
+    env.reset()
+    done = False
+
+
     # Resume from models before
     if resume:
-        print ('Loading Model...')
-        agent.actor_critic.network.load_state_dict(torch.load(model_path + "model-200.pt"))
+        print('Loading Model...')
+        agent.actor_critic.network.load_state_dict(torch.load(model_path + "model-" + str(resume) + ".pt"))
         # target_net.load_state_dict(torch.load(model_path + "model_t-5000.pt"))
-        episode_num = 200
+        episode_num = resume
         # OBSERVE = 5100
     else:
         episode_num = 0
-
 
     while not rospy.is_shutdown():
 
@@ -72,18 +80,16 @@ if __name__ == '__main__':
         # Calculate writhe before this episode
         _, w = env.reward_evaluation(0)
 
-        for step in range(50):
+        for step in range(10):
             print "episode: %d, step:%d" % (episode_num, step+1)
             state = env.getstate()
             value, action, action_log_prob, action_entropy, (agent.actor_critic.hx, agent.actor_critic.cx) = \
                 agent.actor_critic.act(state, (agent.actor_critic.hx, agent.actor_critic.cx))
-            print "action:",
-            print action
+            print("action:", action.data)
 
             env.act(0.2*action.cpu().numpy().squeeze())
             reward, w = env.reward_evaluation(w)
-            print "reward:%f" % reward,
-            print "w:%f" % w
+            print("reward:%f" % reward, "w:%f" % w)
 
             rollouts.insert(state, action, action_log_prob, action_entropy, reward, value)
 
@@ -95,6 +101,16 @@ if __name__ == '__main__':
             value_terminal = agent.actor_critic.getvalue(state, (agent.actor_critic.hx, agent.actor_critic.cx))
         rollouts.values.append(value_terminal)
         agent.update(rollouts)
+
+        # record the training information for analysis
+        reward_mean = np.asarray(rollouts.rewards).mean()
+        record = [reward_mean]
+        print("record:", record)
+        Record.append(record)
+        if episode_num % 100 == 0:
+            file_save = open(record_path + 'Record.pkl', 'wb')
+            pickle.dump(Record, file_save)
+            file_save.close()
 
         rollouts.clear()
 
