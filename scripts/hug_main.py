@@ -87,7 +87,7 @@ if __name__ == '__main__':
                 agent.actor_critic.act(state, (agent.actor_critic.hx, agent.actor_critic.cx))
             print("action:", action.data)
 
-            env.act(0.2*action.cpu().numpy().squeeze())
+            env.act(3.0*action.cpu().numpy().squeeze())
             reward, w = env.reward_evaluation(w)
             print("reward:%f" % reward, "w:%f" % w)
 

@@ -50,7 +50,7 @@ class Baxter(object):
             GLI(cylinder1, cylinder2, limb_pose[8], limb_pose[9])[0]
         w = np.abs(w)
 
-        reward = w - w_last
+        reward = (w - w_last) * 100
 
         return reward, w
 
@@ -93,7 +93,7 @@ class Baxter(object):
 
         # Joint position control
         try:
-            self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
+            self.right_limb_interface.move_to_joint_positions(cmd, timeout=3.0)
         except Exception, e:
             rospy.logerr('Error: %s', str(e))
 
