@@ -74,6 +74,8 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
 
         episode_num += 1
+        env.reset()
+        done = False
         if use_lstm:
             agent.actor_critic.cx = Variable(torch.zeros(1, agent.actor_critic.lstm_size))
             agent.actor_critic.hx = Variable(torch.zeros(1, agent.actor_critic.lstm_size))
@@ -91,7 +93,7 @@ if __name__ == '__main__':
                 agent.actor_critic.act(state)
             print("action:", action.data)
 
-            env.act(3.0*action.cpu().numpy().squeeze())
+            env.act(action.cpu().numpy().squeeze())
             reward, w = env.reward_evaluation(w)
             print("reward:%f" % reward, "w:%f" % w)
 

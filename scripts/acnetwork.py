@@ -60,7 +60,7 @@ class MLPBase(nn.Module):
             self.action_head = init_(nn.Linear(512, self.action_dim))
             self.action_sigma = init_(nn.Linear(512, self.action_dim))
             self.value_head = init_(nn.Linear(512, 1))
-            
+
 
     def forward(self, state, (hx, cx)):
         # x = x.float().div(255.0)

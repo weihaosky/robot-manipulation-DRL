@@ -40,8 +40,8 @@ class Baxter(object):
 
 
     def reward_evaluation(self, w_last):
-        cylinder1 = (0.5, 0.0, -1.0)
-        cylinder2 = (0.5, 0.0, 0.5)
+        cylinder1 = (0.4, 0.0, -1.0)
+        cylinder2 = (0.4, 0.0, 0.5)
 
         limb = 'right'
         limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, limb)
@@ -56,8 +56,8 @@ class Baxter(object):
 
 
     def getstate(self):
-        cylinder1 = (0.5, 0.0, -1.0)
-        cylinder2 = (0.5, 0.0, 0.5)
+        cylinder1 = (0.4, 0.0, -1.0)
+        cylinder2 = (0.4, 0.0, 0.5)
 
         right_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
@@ -86,14 +86,17 @@ class Baxter(object):
         # limb_interface = baxter_interface.Limb(limb)
         cmd = dict()
         for i, joint in enumerate(self.right_limb_interface.joint_names()):
-            cmd[joint] = action[i]
+            cmd[joint] = 0.2 * action[i]
 
         # Joint torque control
         # limb_interface.set_joint_torques(cmd)
 
-        # Joint position control
+        # delta Joint position control
+        cur_type_values = self.right_limb_interface.joint_angles()
+        for i, joint in enumerate(self.right_limb_interface.joint_names()):
+            cmd[joint] = cmd[joint] + cur_type_values[joint]
         try:
-            self.right_limb_interface.move_to_joint_positions(cmd, timeout=3.0)
+            self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
         except Exception, e:
             rospy.logerr('Error: %s', str(e))
 
