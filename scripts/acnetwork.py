@@ -18,7 +18,7 @@ from utils import init, init_normc_
 
 class MLPBase(nn.Module):
 
-    def __init__(self, state_shape, action_dim, lstm_size, use_cuda, name=''):
+    def __init__(self, state_shape, action_dim, lstm_size, use_cuda, use_lstm, name=''):
         super(MLPBase, self).__init__()
 
         init_ = lambda m: init(m,
@@ -29,6 +29,7 @@ class MLPBase(nn.Module):
         self.action_dim = action_dim
         self.lstm_size = lstm_size
         self.use_cuda = use_cuda
+        self.use_lstm = use_lstm
         # self.conv1 = nn.Conv2d(self.state_shape[0], 64, kernel_size=9, stride=1, padding = 4)
         # # self.bn1 = nn.BatchNorm2d(64)
         # self.conv2 = nn.Conv2d(64, 64, kernel_size=7, stride=1, padding = 3)
@@ -47,14 +48,19 @@ class MLPBase(nn.Module):
         self.hidden12 = init_(nn.Linear(self.state_shape[1] + self.state_shape[2], 512))
         self.hidden13 = init_(nn.Linear(self.state_shape[3], 256))
         self.hidden2 = init_(nn.Linear(1024, 512))
-        self.lstm = nn.LSTMCell(512, self.lstm_size)
-        self.action_head = init_(nn.Linear(self.lstm_size, self.action_dim))
-        self.action_sigma = init_(nn.Linear(self.lstm_size, self.action_dim))
-        self.value_head = init_(nn.Linear(self.lstm_size, 1))
+        if self.use_lstm:
+            self.lstm = nn.LSTMCell(512, self.lstm_size)
+            self.action_head = init_(nn.Linear(self.lstm_size, self.action_dim))
+            self.action_sigma = init_(nn.Linear(self.lstm_size, self.action_dim))
+            self.value_head = init_(nn.Linear(self.lstm_size, 1))
 
-        self.lstm.bias_ih.data.fill_(0)
-        self.lstm.bias_hh.data.fill_(0)
-
+            self.lstm.bias_ih.data.fill_(0)
+            self.lstm.bias_hh.data.fill_(0)
+        else:
+            self.action_head = init_(nn.Linear(512, self.action_dim))
+            self.action_sigma = init_(nn.Linear(512, self.action_dim))
+            self.value_head = init_(nn.Linear(512, 1))
+            
 
     def forward(self, state, (hx, cx)):
         # x = x.float().div(255.0)
@@ -80,8 +86,9 @@ class MLPBase(nn.Module):
         x = torch.cat((x1, x2, x3), -1)
         x = F.relu(self.hidden2(x))
         x = x.view(-1, 512)
-        hx, cx = self.lstm(x, (hx, cx))
-        x = hx
+        if self.use_lstm:
+            hx, cx = self.lstm(x, (hx, cx))
+            x = hx
         c = self.value_head(x)
         a = F.tanh(self.action_head(x))
         a_sigma = F.softplus(self.action_sigma(x))
@@ -89,14 +96,15 @@ class MLPBase(nn.Module):
 
 
 class ACNet(nn.Module):
-    def __init__(self, use_cuda):
+    def __init__(self, use_cuda, use_lstm):
         super(ACNet, self).__init__()
         self.use_cuda = use_cuda
+        self.use_lstm = use_lstm
         self.lstm_size = 64
         self.state_shape = [7, 30, 6, 3]
         self.action_dim = 7
-        self.network = MLPBase(state_shape = self.state_shape, action_dim = self.action_dim, \
-                               lstm_size = self.lstm_size, use_cuda = self.use_cuda)
+        self.network = MLPBase(state_shape=self.state_shape, action_dim=self.action_dim, \
+                               lstm_size=self.lstm_size, use_lstm=self.use_lstm, use_cuda=self.use_cuda)
         self.cx = Variable(torch.zeros(1, self.lstm_size))
         self.hx = Variable(torch.zeros(1, self.lstm_size))
         if self.use_cuda:
@@ -104,11 +112,11 @@ class ACNet(nn.Module):
             self.hx = self.hx.cuda()
 
 
-    def act(self, states, (hx,cx)):
+    def act(self, states):
         # states = Variable(torch.from_numpy(states))
         # if self.use_cuda:
         #     states = states.cuda()
-        value, action_mu, action_sigma, (hx, cx) = self.network(states, (hx, cx))
+        value, action_mu, action_sigma, (self.hx, self.cx) = self.network(states, (self.hx, self.cx))
         a_dist = Normal(action_mu, action_sigma)
         action = a_dist.sample()
         a_log_probs = a_dist.log_prob(action)
@@ -121,23 +129,23 @@ class ACNet(nn.Module):
         print "value:",
         print value
 
-        return value, action, a_log_probs, a_dist_entropy, (hx, cx)
+        return value, action, a_log_probs, a_dist_entropy
 
-    def getvalue(self, states, (hx,cx)):
+    def getvalue(self, states):
         # states = Variable(torch.from_numpy(states))
         # if self.use_cuda:
         #     states = states.cuda()
-        value, _, _, _ = self.network(states, (hx,cx))
+        value, _, _, _ = self.network(states, (self.hx, self.cx))
         return value
 
-    def evaluate_actions(self, states, (hx, cx), action):
-        value, action_mu, action_sigma, (hx, cx) = self.network(states, (hx, cx))
+    def evaluate_actions(self, states, action):
+        value, action_mu, action_sigma, (self.hx, self.cx) = self.network(states, (self.hx, self.cx))
         a_dist = Normal(action_mu, action_sigma)
 
         a_log_probs = a_dist.log_prob(action)
         a_dist_entropy = a_dist.entropy().mean()
 
-        return value, a_log_probs, a_dist_entropy, (hx, cx)
+        return value, a_log_probs, a_dist_entropy
 
 
 class A2Cagent(object):
