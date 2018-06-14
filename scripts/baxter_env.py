@@ -8,6 +8,12 @@ import rospy
 import baxter_interface
 from baxter_kdl.kdl_parser import kdl_tree_from_urdf_model
 from urdf_parser_py.urdf import URDF
+import moveit_commander
+import sys
+import geometry_msgs.msg
+
+from moveit_python import *
+import moveit_python
 
 # rospy.init_node('baxter_hug')
 
@@ -20,12 +26,43 @@ class Baxter(object):
         self.right_limb_interface = baxter_interface.Limb('right')
         self.left_limb_interface = baxter_interface.Limb('left')
 
+        # moveit group setup
+        moveit_commander.roscpp_initialize(sys.argv)
+        self.robot = moveit_commander.RobotCommander()
+        self.scene = moveit_python.PlanningSceneInterface(self.robot.get_planning_frame())
+        # self.scene = moveit_commander.PlanningSceneInterface()
+        self.group_name = "right_arm"
+        self.group = moveit_commander.MoveGroupCommander(self.group_name)
+
+        # Hugging target
+        self.cylinder1 = (0.4, 0.0, -1.0)
+        self.cylinder2 = (0.4, 0.0, 0.5)
+        cylinder_pose = geometry_msgs.msg.PoseStamped()
+        cylinder_pose.header.frame_id = self.robot.get_planning_frame()
+        cylinder_pose.pose.orientation.x = 0.4
+        cylinder_pose.pose.orientation.y = 0.0
+        cylinder_name = "target"
+        cylinder_height = self.cylinder2[2] - self.cylinder1[2]
+        cylinder_radius = 0.1
+        self.scene.addCylinder(cylinder_name, cylinder_height, cylinder_radius, \
+                               self.cylinder1[0], self.cylinder1[1], self.cylinder1[2]+cylinder_height/2.0)
+
+        # rospy.sleep(2)
+        # box_pose = geometry_msgs.msg.PoseStamped()
+        # box_pose.header.frame_id = self.robot.get_planning_frame()
+        # box_pose.pose.orientation.w = 1.0
+        # box_name = "box"
+        # self.scene.add_box(box_name, box_pose, size=(0.1, 0.1, 0.1))
+        # self.scene.get_known_object_names()
+
         # Verify robot is enabled
         print("Getting robot state... ")
         self._rs = baxter_interface.RobotEnable()
         self._init_state = self._rs.state().enabled
         print("Enabling robot... ")
-        self._rs.enable()
+        if not self._init_state:
+            self._rs.enable()
+
 
     def reset(self):
         print "Resetting Baxter...",
@@ -33,21 +70,31 @@ class Baxter(object):
         # limb_interface = baxter_interface.Limb(limb)
 
         # Joint position control
-        self.right_limb_interface.move_to_neutral(timeout=10.0)
+        # self.right_limb_interface.move_to_neutral(timeout=10.0)
+
+        # Moveit joint move
+        joint_goal = self.group.get_current_joint_values()
+        joint_goal[0] = 0.0
+        joint_goal[1] = -0.55
+        joint_goal[2] = 0.0
+        joint_goal[3] = 0.75
+        joint_goal[4] = 0.0
+        joint_goal[5] = 1.26
+        joint_goal[6] = 0.0
+        self.group.go(joint_goal, wait=True)
+        self.group.stop()
 
         print "done"
 
 
 
     def reward_evaluation(self, w_last):
-        cylinder1 = (0.4, 0.0, -1.0)
-        cylinder2 = (0.4, 0.0, 0.5)
 
         limb = 'right'
         limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, limb)
-        w = GLI(cylinder1, cylinder2, limb_pose[5], limb_pose[7])[0] + \
-            GLI(cylinder1, cylinder2, limb_pose[7], limb_pose[8])[0] + \
-            GLI(cylinder1, cylinder2, limb_pose[8], limb_pose[9])[0]
+        w = GLI(self.cylinder1, self.cylinder2, limb_pose[5], limb_pose[7])[0] + \
+            GLI(self.cylinder1, self.cylinder2, limb_pose[7], limb_pose[8])[0] + \
+            GLI(self.cylinder1, self.cylinder2, limb_pose[8], limb_pose[9])[0]
         w = np.abs(w)
 
         reward = (w - w_last) * 100
@@ -56,8 +103,6 @@ class Baxter(object):
 
 
     def getstate(self):
-        cylinder1 = (0.4, 0.0, -1.0)
-        cylinder2 = (0.4, 0.0, 0.5)
 
         right_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
@@ -70,12 +115,12 @@ class Baxter(object):
         state2 = np.asarray(right_pose[3:]).flatten()
 
         # hugging target -- cylinder
-        state3 = np.asarray([cylinder1, cylinder2]).flatten()
+        state3 = np.asarray([self.cylinder1, self.cylinder2]).flatten()
 
         # writhe matrix
-        state4 = np.asarray([GLI(cylinder1, cylinder2, right_pose[5], right_pose[7])[0], \
-                            GLI(cylinder1, cylinder2, right_pose[7], right_pose[8])[0], \
-                            GLI(cylinder1, cylinder2, right_pose[8], right_pose[9])[0]]).flatten()
+        state4 = np.asarray([GLI(self.cylinder1, self.cylinder2, right_pose[5], right_pose[7])[0], \
+                            GLI(self.cylinder1, self.cylinder2, right_pose[7], right_pose[8])[0], \
+                            GLI(self.cylinder1, self.cylinder2, right_pose[8], right_pose[9])[0]]).flatten()
 
         state = [state1, state2, state3, state4]
         return state
@@ -88,19 +133,30 @@ class Baxter(object):
         for i, joint in enumerate(self.right_limb_interface.joint_names()):
             cmd[joint] = 0.2 * action[i]
 
-        # Joint torque control
+        # ########### Joint torque control ####################
         # limb_interface.set_joint_torques(cmd)
 
-        # delta Joint position control
-        cur_type_values = self.right_limb_interface.joint_angles()
-        for i, joint in enumerate(self.right_limb_interface.joint_names()):
-            cmd[joint] = cmd[joint] + cur_type_values[joint]
+        # ########## delta Joint position control ###############
+        # cur_type_values = self.right_limb_interface.joint_angles()
+        # for i, joint in enumerate(self.right_limb_interface.joint_names()):
+        #     cmd[joint] = cmd[joint] + cur_type_values[joint]
+        # try:
+        #     self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
+        # except Exception, e:
+        #     rospy.logerr('Error: %s', str(e))
+
+        # ########## moveit joint position move #####################
+        joint_goal = self.group.get_current_joint_values()
+        for i in range(7):
+            joint_goal[i] = joint_goal[i] + 0.2 * action[i]
         try:
-            self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
+            self.group.go(joint_goal, wait=True)
         except Exception, e:
             rospy.logerr('Error: %s', str(e))
+            IPython.embed()
 
-
+        # Calling ``stop()`` ensures that there is no residual movement
+        self.group.stop()
 
 
 def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):

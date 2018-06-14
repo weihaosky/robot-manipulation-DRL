@@ -57,7 +57,7 @@ if __name__ == '__main__':
     Record = []
 
     # Begin to work!
-    env.reset()
+    # env.reset()
     done = False
 
 
@@ -110,7 +110,11 @@ if __name__ == '__main__':
 
         # record the training information for analysis
         reward_mean = np.asarray(rollouts.rewards).mean()
-        record = [reward_mean]
+        values = []
+        for item in rollouts.values:
+            values.append(item.cpu().detach().numpy())
+        value_mean = np.asarray(values).mean()
+        record = [reward_mean, value_mean]
         print("record:", record)
         Record.append(record)
         if episode_num % 100 == 0:
