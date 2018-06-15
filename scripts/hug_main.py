@@ -85,6 +85,7 @@ if __name__ == '__main__':
 
         # Calculate writhe before this episode
         _, w = env.reward_evaluation(0)
+        print("w:%f!!!!!!!!!!!!!!!!!!!!!!!!!!!!" % w)
 
         for step in range(10):
             print "episode: %d, step:%d" % (episode_num, step+1)
@@ -114,7 +115,7 @@ if __name__ == '__main__':
         for item in rollouts.values:
             values.append(item.cpu().detach().numpy())
         value_mean = np.asarray(values).mean()
-        record = [reward_mean, value_mean]
+        record = [reward_mean, value_mean, w]
         print("record:", record)
         Record.append(record)
         if episode_num % 100 == 0:

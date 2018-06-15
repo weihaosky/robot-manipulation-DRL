@@ -91,7 +91,9 @@ class Baxter(object):
     def reward_evaluation(self, w_last):
 
         limb = 'right'
+        rospy.sleep(0.01)
         limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, limb)
+
         w = GLI(self.cylinder1, self.cylinder2, limb_pose[5], limb_pose[7])[0] + \
             GLI(self.cylinder1, self.cylinder2, limb_pose[7], limb_pose[8])[0] + \
             GLI(self.cylinder1, self.cylinder2, limb_pose[8], limb_pose[9])[0]
@@ -153,7 +155,7 @@ class Baxter(object):
             self.group.go(joint_goal, wait=True)
         except Exception, e:
             rospy.logerr('Error: %s', str(e))
-            IPython.embed()
+            #IPython.embed()
 
         # Calling ``stop()`` ensures that there is no residual movement
         self.group.stop()
