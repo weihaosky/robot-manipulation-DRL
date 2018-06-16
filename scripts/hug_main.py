@@ -71,7 +71,7 @@ if __name__ == '__main__':
     else:
         episode_num = 0
 
-    while not rospy.is_shutdown():
+    while not rospy.is_shutdown() and episode_num <= 1000:
 
         episode_num += 1
         env.reset()
@@ -92,7 +92,7 @@ if __name__ == '__main__':
             state = env.getstate()
             value, action, action_log_prob, action_entropy = \
                 agent.actor_critic.act(state)
-            print("action:", action.data)
+            # print("action:", action.data)
 
             env.act(action.cpu().numpy().squeeze())
             reward, w = env.reward_evaluation(w)

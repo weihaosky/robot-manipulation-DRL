@@ -11,6 +11,7 @@ from urdf_parser_py.urdf import URDF
 import moveit_commander
 import sys
 import geometry_msgs.msg
+import random
 
 from moveit_python import *
 import moveit_python
@@ -37,15 +38,11 @@ class Baxter(object):
         # Hugging target
         self.cylinder1 = (0.4, 0.0, -1.0)
         self.cylinder2 = (0.4, 0.0, 0.5)
-        cylinder_pose = geometry_msgs.msg.PoseStamped()
-        cylinder_pose.header.frame_id = self.robot.get_planning_frame()
-        cylinder_pose.pose.orientation.x = 0.4
-        cylinder_pose.pose.orientation.y = 0.0
-        cylinder_name = "target"
-        cylinder_height = self.cylinder2[2] - self.cylinder1[2]
-        cylinder_radius = 0.1
-        self.scene.addCylinder(cylinder_name, cylinder_height, cylinder_radius, \
-                               self.cylinder1[0], self.cylinder1[1], self.cylinder1[2]+cylinder_height/2.0)
+        # cylinder_pose = geometry_msgs.msg.PoseStamped()
+        # cylinder_pose.header.frame_id = self.robot.get_planning_frame()
+        # cylinder_pose.pose.orientation.x = 0.4
+        # cylinder_pose.pose.orientation.y = 0.0
+
 
         # rospy.sleep(2)
         # box_pose = geometry_msgs.msg.PoseStamped()
@@ -83,6 +80,27 @@ class Baxter(object):
         joint_goal[6] = 0.0
         self.group.go(joint_goal, wait=True)
         self.group.stop()
+
+        # Reset hugging target
+        while 'target' in self.scene.getKnownCollisionObjects():
+            self.scene.removeCollisionObject('target', wait=True)
+            rospy.sleep(0.1)
+            print "deleting target...",
+        # Randomly initialize target position
+        cylinder_x = random.uniform(0.3, 0.7)
+        cylinder_y = random.uniform(-0.2, 0.2)
+        self.cylinder1 = (cylinder_x, cylinder_y, -1.0)
+        self.cylinder2 = (cylinder_x, cylinder_y, 0.5)
+
+        cylinder_name = "target"
+        cylinder_height = self.cylinder2[2] - self.cylinder1[2]
+        cylinder_radius = 0.1
+        while 'target' not in self.scene.getKnownCollisionObjects():
+            self.scene.addCylinder(cylinder_name, cylinder_height, cylinder_radius,
+                                   self.cylinder1[0], self.cylinder1[1], self.cylinder1[2] + cylinder_height / 2.0)
+            rospy.sleep(0.1)
+            print "adding target..."
+        print "cylinder_x: %f, cylinder_y: %f" % (cylinder_x, cylinder_y),
 
         print "done"
 
