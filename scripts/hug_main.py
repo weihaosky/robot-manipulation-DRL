@@ -85,7 +85,7 @@ if __name__ == '__main__':
 
         # Calculate writhe before this episode
         _, w = env.reward_evaluation(0)
-        print("w:%f!!!!!!!!!!!!!!!!!!!!!!!!!!!!" % w)
+        print("Starting w:%f" % w)
 
         for step in range(10):
             print "episode: %d, step:%d" % (episode_num, step+1)
@@ -118,7 +118,7 @@ if __name__ == '__main__':
         record = [reward_mean, value_mean, w]
         print("record:", record)
         Record.append(record)
-        if episode_num % 100 == 0:
+        if episode_num % 10 == 0:
             file_save = open(record_path + 'Record.pkl', 'wb')
             pickle.dump(Record, file_save)
             file_save.close()

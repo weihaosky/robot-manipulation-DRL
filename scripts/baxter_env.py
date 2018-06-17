@@ -82,7 +82,11 @@ class Baxter(object):
         self.group.stop()
 
         # Reset hugging target
+        count = 0
         while 'target' in self.scene.getKnownCollisionObjects():
+            count+=1
+            if count > 10:
+                self.scene._collision = []
             self.scene.removeCollisionObject('target', wait=True)
             rospy.sleep(0.1)
             print "deleting target...",
