@@ -86,28 +86,34 @@ if __name__ == '__main__':
                 agent.actor_critic.hx = agent.actor_critic.hx.cuda()
 
         # Calculate writhe before this episode
-        _, w, collision = env.reward_evaluation(0)
+        _, w, collision = env.reward_evaluation(0, 0)
         print("Starting w:%f" % w)
 
-        for step in range(10):
-            print "episode: %d, step:%d" % (episode_num, step+1)
+        for step in range(1, 11):
+            print "episode: %d, step:%d" % (episode_num, step)
             state = env.getstate()
             value, action, action_log_prob, action_entropy = \
                 agent.actor_critic.act(state)
             # print("action:", action.data)
 
             env.act(action.cpu().numpy().squeeze())
-            reward, w, collision = env.reward_evaluation(w)
+            reward, w, collision = env.reward_evaluation(w, step)
             print("reward:%f" % reward, "w:%f" % w)
 
             rollouts.insert(state, action, action_log_prob, action_entropy, reward, value)
 
-            if collision:
+            if collision == 1:
                 print "collision!!!!!!!!!!!!!!!!!!!!!!!"
                 done = True
-
-            if done:
                 break
+
+            if collision == -1:
+                print "target load error!!!!!!!!!!!!!!!!!!!!!"
+                break
+
+        if collision == -1:
+            episode_num -= 1
+            continue
 
         value_terminal = torch.zeros(1, 1)
         if use_cuda:

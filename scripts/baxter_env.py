@@ -122,7 +122,7 @@ class Baxter(object):
 
 
 
-    def reward_evaluation(self, w_last):
+    def reward_evaluation(self, w_last, step):
 
         # Calculate writhe improvement
         rospy.sleep(0.01)
@@ -149,9 +149,11 @@ class Baxter(object):
         current_cylinder_pos = state.pose.position
         cylinder_move = math.hypot((current_cylinder_pos.x - self.cylinder2[0]),
                              (current_cylinder_pos.y - self.cylinder2[1]))
-        if cylinder_move > 0.01:
+        if cylinder_move > 0.03:
             collision = 1
             reward = -1.0
+            if step <= 2:
+                collision = -1
 
         # Listen to collision information
         # msg = self.collision_getter.get_msg()
@@ -226,7 +228,7 @@ class Baxter(object):
     def load_model(self, name, path, block_pose,
                     block_reference_frame="world"):
         # Get Models' Path
-        model_path = rospkg.RosPack().get_path('baxter_hug') + "/gazebo_models/"
+        model_path = "./gazebo_models/"
 
         # Load Block SDF
         block_xml = ''
