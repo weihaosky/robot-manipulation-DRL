@@ -1,25 +1,30 @@
 import numpy as np
 import math
-from scipy.integrate import quad,dblquad,nquad
 import IPython
 import PyKDL
+import sys
+import random
 
 import rospy
+import rospkg
 import baxter_interface
 from baxter_kdl.kdl_parser import kdl_tree_from_urdf_model
 from urdf_parser_py.urdf import URDF
 import moveit_commander
-import sys
 import geometry_msgs.msg
-import random
+from gazebo_msgs.srv import SpawnModel, DeleteModel, GetModelState
+from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
+from std_msgs.msg import String
 
 from moveit_python import *
 import moveit_python
+from utils import InfoGetter, GLI
 
 # rospy.init_node('baxter_hug')
 
 class Baxter(object):
-    def __init__(self):
+    def __init__(self, use_moveit=False):
+        self.use_moveit = use_moveit
         self.baxter = URDF.from_parameter_server(key='robot_description')
         self.kdl_tree = kdl_tree_from_urdf_model(self.baxter)
         self.base_link = self.baxter.get_root()
@@ -27,30 +32,24 @@ class Baxter(object):
         self.right_limb_interface = baxter_interface.Limb('right')
         self.left_limb_interface = baxter_interface.Limb('left')
 
-        # moveit group setup
-        moveit_commander.roscpp_initialize(sys.argv)
-        self.robot = moveit_commander.RobotCommander()
-        self.scene = moveit_python.PlanningSceneInterface(self.robot.get_planning_frame())
-        # self.scene = moveit_commander.PlanningSceneInterface()
-        self.group_name = "right_arm"
-        self.group = moveit_commander.MoveGroupCommander(self.group_name)
+        if self.use_moveit:
+            # moveit group setup
+            moveit_commander.roscpp_initialize(sys.argv)
+            self.robot = moveit_commander.RobotCommander()
+            self.scene = moveit_python.PlanningSceneInterface(self.robot.get_planning_frame())
+            # self.scene = moveit_commander.PlanningSceneInterface()
+            self.group_name = "right_arm"
+            self.group = moveit_commander.MoveGroupCommander(self.group_name)
 
         # Hugging target
+        self.cylinder_height = 1.8
+        self.cylinder_radius = 0.1
         self.cylinder1 = (0.4, 0.0, -1.0)
-        self.cylinder2 = (0.4, 0.0, 0.5)
-        # cylinder_pose = geometry_msgs.msg.PoseStamped()
-        # cylinder_pose.header.frame_id = self.robot.get_planning_frame()
-        # cylinder_pose.pose.orientation.x = 0.4
-        # cylinder_pose.pose.orientation.y = 0.0
+        self.cylinder2 = (0.4, 0.0, -1.0 + self.cylinder_height)
 
-
-        # rospy.sleep(2)
-        # box_pose = geometry_msgs.msg.PoseStamped()
-        # box_pose.header.frame_id = self.robot.get_planning_frame()
-        # box_pose.pose.orientation.w = 1.0
-        # box_name = "box"
-        # self.scene.add_box(box_name, box_pose, size=(0.1, 0.1, 0.1))
-        # self.scene.get_known_object_names()
+        # Listen to collision information
+        # self.collision_getter = InfoGetter()
+        # self.collision_topic = "/hug_collision"
 
         # Verify robot is enabled
         print("Getting robot state... ")
@@ -62,49 +61,62 @@ class Baxter(object):
 
 
     def reset(self):
-        print "Resetting Baxter...",
+        print "Resetting Baxter..."
         # limb = 'right'
         # limb_interface = baxter_interface.Limb(limb)
 
-        # Joint position control
-        # self.right_limb_interface.move_to_neutral(timeout=10.0)
+        if not self.use_moveit:
+            # Joint position control
+            self.right_limb_interface.move_to_neutral(timeout=10.0)
+        else:
+            # Moveit joint move
+            joint_goal = self.group.get_current_joint_values()
+            joint_goal[0] = 0.0
+            joint_goal[1] = -0.55
+            joint_goal[2] = 0.0
+            joint_goal[3] = 0.75
+            joint_goal[4] = 0.0
+            joint_goal[5] = 1.26
+            joint_goal[6] = 0.0
+            self.group.go(joint_goal, wait=True)
+            self.group.stop()
 
-        # Moveit joint move
-        joint_goal = self.group.get_current_joint_values()
-        joint_goal[0] = 0.0
-        joint_goal[1] = -0.55
-        joint_goal[2] = 0.0
-        joint_goal[3] = 0.75
-        joint_goal[4] = 0.0
-        joint_goal[5] = 1.26
-        joint_goal[6] = 0.0
-        self.group.go(joint_goal, wait=True)
-        self.group.stop()
-
-        # Reset hugging target
-        count = 0
-        while 'target' in self.scene.getKnownCollisionObjects():
-            count+=1
-            if count > 10:
-                self.scene._collision = []
-            self.scene.removeCollisionObject('target', wait=True)
-            rospy.sleep(0.1)
-            print "deleting target...",
+        # ###################### Reset hugging target ##########################
+        self.delete_model("hugging_target")
+        rospy.sleep(0.1)
         # Randomly initialize target position
         cylinder_x = random.uniform(0.3, 0.7)
         cylinder_y = random.uniform(-0.2, 0.2)
+        cylinder_z = (self.cylinder2[2] - self.cylinder1[2]) / 2.0
         self.cylinder1 = (cylinder_x, cylinder_y, -1.0)
-        self.cylinder2 = (cylinder_x, cylinder_y, 0.5)
+        self.cylinder2 = (cylinder_x, cylinder_y, -1.0 + self.cylinder_height)
 
-        cylinder_name = "target"
-        cylinder_height = self.cylinder2[2] - self.cylinder1[2]
-        cylinder_radius = 0.1
-        while 'target' not in self.scene.getKnownCollisionObjects():
-            self.scene.addCylinder(cylinder_name, cylinder_height, cylinder_radius,
-                                   self.cylinder1[0], self.cylinder1[1], self.cylinder1[2] + cylinder_height / 2.0)
-            rospy.sleep(0.1)
-            print "adding target..."
-        print "cylinder_x: %f, cylinder_y: %f" % (cylinder_x, cylinder_y),
+        print "load gazebo model"
+        resp = self.load_model("hugging_target", "cylinder.sdf",
+                           Pose(position=Point(x=cylinder_x, y=cylinder_y, z=cylinder_z)))
+        # Listen to collision information
+        # rospy.Subscriber(self.collision_topic, String, self.collision_getter)
+
+        if self.use_moveit:
+            # Delete object in the scene
+            count = 0
+            while 'target' in self.scene.getKnownCollisionObjects():
+                count += 1
+                if count > 10:
+                    self.scene._collision = []
+                self.scene.removeCollisionObject('target', wait=True)
+                rospy.sleep(0.1)
+                print "deleting target...",
+
+            cylinder_name = "target"
+            cylinder_height = self.cylinder2[2] - self.cylinder1[2]
+            # Add object to the planning scene for collision avoidance
+            while 'target' not in self.scene.getKnownCollisionObjects():
+                self.scene.addCylinder(cylinder_name, cylinder_height, self.cylinder_radius,
+                                       self.cylinder1[0], self.cylinder1[1], self.cylinder1[2] + cylinder_height / 2.0)
+                rospy.sleep(0.1)
+                print "adding target..."
+            print "cylinder_x: %f, cylinder_y: %f" % (cylinder_x, cylinder_y),
 
         print "done"
 
@@ -112,18 +124,43 @@ class Baxter(object):
 
     def reward_evaluation(self, w_last):
 
-        limb = 'right'
+        # Calculate writhe improvement
         rospy.sleep(0.01)
+        limb = 'right'
         limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, limb)
-
-        w = GLI(self.cylinder1, self.cylinder2, limb_pose[5], limb_pose[7])[0] + \
+        w = GLI(self.cylinder1, self.cylinder2, limb_pose[5], limb_pose[6])[0] + \
+            GLI(self.cylinder1, self.cylinder2, limb_pose[6], limb_pose[7])[0] + \
             GLI(self.cylinder1, self.cylinder2, limb_pose[7], limb_pose[8])[0] + \
-            GLI(self.cylinder1, self.cylinder2, limb_pose[8], limb_pose[9])[0]
+            GLI(self.cylinder1, self.cylinder2, limb_pose[8], limb_pose[9])[0] + \
+            GLI(self.cylinder1, self.cylinder2, limb_pose[9], limb_pose[10])[0] + \
+            GLI(self.cylinder1, self.cylinder2, limb_pose[10], limb_pose[11])[0] + \
+            GLI(self.cylinder1, self.cylinder2, limb_pose[11], limb_pose[12])[0]
         w = np.abs(w)
+        reward = (w - w_last) * 20
 
-        reward = (w - w_last) * 100
+        # Detect collision
+        collision = 0
+        g_get_state = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
+        rospy.wait_for_service("/gazebo/get_model_state")
+        try:
+            state = g_get_state(model_name="hugging_target")
+        except Exception, e:
+            rospy.logerr('Error on calling service: %s', str(e))
+        current_cylinder_pos = state.pose.position
+        cylinder_move = math.hypot((current_cylinder_pos.x - self.cylinder2[0]),
+                             (current_cylinder_pos.y - self.cylinder2[1]))
+        if cylinder_move > 0.01:
+            collision = 1
+            reward = -1.0
 
-        return reward, w
+        # Listen to collision information
+        # msg = self.collision_getter.get_msg()
+        # print("Collision massage:", msg)
+        # if msg:
+        #     if msg.data == "cylinder_collision":
+        #         collision = 1
+
+        return reward, w, collision
 
 
     def getstate(self):
@@ -139,48 +176,81 @@ class Baxter(object):
         state2 = np.asarray(right_pose[3:]).flatten()
 
         # hugging target -- cylinder
-        state3 = np.asarray([self.cylinder1, self.cylinder2]).flatten()
+        aa = np.asarray([self.cylinder_radius])
+        bb = np.asarray([self.cylinder1, self.cylinder2]).flatten()
+        state3 = np.concatenate((aa, bb), axis=0)
 
         # writhe matrix
-        state4 = np.asarray([GLI(self.cylinder1, self.cylinder2, right_pose[5], right_pose[7])[0], \
-                            GLI(self.cylinder1, self.cylinder2, right_pose[7], right_pose[8])[0], \
-                            GLI(self.cylinder1, self.cylinder2, right_pose[8], right_pose[9])[0]]).flatten()
+        state4 = np.asarray([GLI(self.cylinder1, self.cylinder2, right_pose[5], right_pose[6])[0],
+                             GLI(self.cylinder1, self.cylinder2, right_pose[6], right_pose[7])[0],
+                             GLI(self.cylinder1, self.cylinder2, right_pose[7], right_pose[8])[0],
+                             GLI(self.cylinder1, self.cylinder2, right_pose[8], right_pose[9])[0],
+                             GLI(self.cylinder1, self.cylinder2, right_pose[9], right_pose[10])[0],
+                             GLI(self.cylinder1, self.cylinder2, right_pose[10], right_pose[11])[0], \
+                             GLI(self.cylinder1, self.cylinder2, right_pose[11], right_pose[12])[0]]).flatten()
 
         state = [state1, state2, state3, state4]
         return state
 
     def act(self, action):
 
-        # limb = 'right'
-        # limb_interface = baxter_interface.Limb(limb)
-        cmd = dict()
-        for i, joint in enumerate(self.right_limb_interface.joint_names()):
-            cmd[joint] = 0.2 * action[i]
-
         # ########### Joint torque control ####################
         # limb_interface.set_joint_torques(cmd)
 
-        # ########## delta Joint position control ###############
-        # cur_type_values = self.right_limb_interface.joint_angles()
-        # for i, joint in enumerate(self.right_limb_interface.joint_names()):
-        #     cmd[joint] = cmd[joint] + cur_type_values[joint]
-        # try:
-        #     self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
-        # except Exception, e:
-        #     rospy.logerr('Error: %s', str(e))
+        if not self.use_moveit:
+            cmd = dict()
+            for i, joint in enumerate(self.right_limb_interface.joint_names()):
+                cmd[joint] = 0.2 * action[i]
+            # ########## delta Joint position control ###############
+            cur_type_values = self.right_limb_interface.joint_angles()
+            for i, joint in enumerate(self.right_limb_interface.joint_names()):
+                cmd[joint] = cmd[joint] + cur_type_values[joint]
+            try:
+                self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
+            except Exception, e:
+                rospy.logerr('Error: %s', str(e))
+        else:
+            # ########## moveit joint position move #####################
+            joint_goal = self.group.get_current_joint_values()
+            for i in range(7):
+                joint_goal[i] = joint_goal[i] + 0.2 * action[i]
+            try:
+                self.group.go(joint_goal, wait=True)
+            except Exception, e:
+                rospy.logerr('Error: %s', str(e))
 
-        # ########## moveit joint position move #####################
-        joint_goal = self.group.get_current_joint_values()
-        for i in range(7):
-            joint_goal[i] = joint_goal[i] + 0.2 * action[i]
+            # Calling ``stop()`` ensures that there is no residual movement
+            self.group.stop()
+
+
+    def load_model(self, name, path, block_pose,
+                    block_reference_frame="world"):
+        # Get Models' Path
+        model_path = rospkg.RosPack().get_path('baxter_hug') + "/gazebo_models/"
+
+        # Load Block SDF
+        block_xml = ''
+        with open(model_path + path, "r") as block_file:
+            block_xml = block_file.read().replace('\n', '')
+
+        # Spawn Block SDF
+        rospy.wait_for_service('/gazebo/spawn_sdf_model')
+        resp_sdf = 0
         try:
-            self.group.go(joint_goal, wait=True)
-        except Exception, e:
-            rospy.logerr('Error: %s', str(e))
-            #IPython.embed()
+            spawn_sdf = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
+            resp_sdf = spawn_sdf(name, block_xml, "/",
+                                   block_pose, block_reference_frame)
+        except rospy.ServiceException, e:
+            rospy.logerr("Spawn SDF service call failed: {0}".format(e))
 
-        # Calling ``stop()`` ensures that there is no residual movement
-        self.group.stop()
+        return resp_sdf
+
+    def delete_model(self, name):
+        try:
+            delete_model = rospy.ServiceProxy('/gazebo/delete_model', DeleteModel)
+            resp_delete = delete_model(name)
+        except rospy.ServiceException, e:
+            rospy.loginfo("Delete Model service call failed: {0}".format(e))
 
 
 def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
@@ -248,39 +318,6 @@ def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
 
 
 
-# calculate gussian linking integral for two lines X1--X2 and Y1--Y2
-def GLI(X1=(0.0, 0.0, 0.0), X2 = (1.0, 0.0, 1.0), Y1 = (0.0, 0.0, 1.0), Y2 = (0.0, 1.0, 1.0)):
-    x1 = X1[0]
-    y1 = X1[1]
-    z1 = X1[2]
-    x2 = X2[0]
-    y2 = X2[1]
-    z2 = X2[2]
-
-    a1 = Y1[0]
-    b1 = Y1[1]
-    c1 = Y1[2]
-    a2 = Y2[0]
-    b2 = Y2[1]
-    c2 = Y2[2]
-
-    D1 = np.array([x2-x1, y2-y1, z2-z1])
-    D2 = np.array([a2-a1, b2-b1, c2-c1])
-    Prod = np.cross(D1, D2)
-
-    def inte(s, t):
-        x = x1 + (x2 - x1) * s
-        y = y1 + (y2 - y1) * s
-        z = z1 + (z2 - z1) * s
-        a = a1 + (a2 - a1) * t
-        b = b1 + (b2 - b1) * t
-        c = c1 + (c2 - c1) * t
-        return (Prod[0]*(x-a) + Prod[1]*(y-b) + Prod[2]*(z-c)) / np.power((x-a)**2 + (y-b)**2 + (z-c)**2, 3.0/2)
-
-    result = dblquad( inte , 0, 1, lambda t:0, lambda t:1)
-    gli = result[0] / (4*math.pi)
-    error = result[1] / (4*math.pi)
-    return (gli, error)
 
 
 

@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+    <model name="cylinder">
+      <link name="link">
+        <pose>0 0 0 0 0 0</pose>
+
+        <collision name="cylinder_collision">
+          <geometry>
+            <cylinder>
+              <radius>.1</radius>
+              <length>1.8</length>
+            </cylinder>
+          </geometry>
+        </collision>
+
+        <visual name="visual">
+          <geometry>
+            <cylinder>
+              <radius>.1</radius>
+              <length>1.8</length>
+            </cylinder>
+          </geometry>
+        </visual>
+
+        <!-- <sensor name='my_contact2' type='contact'>
+        <plugin name="my_plugin2" filename="libcontact.so"/>
+          <contact>
+            <collision>cylinder_collision</collision>
+          </contact>
+          <update_rate> 100 </update_rate>
+        </sensor> -->
+      </link>
+    </model>
+</sdf>

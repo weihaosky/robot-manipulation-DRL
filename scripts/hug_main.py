@@ -21,20 +21,22 @@ parser.add_argument('--resume', type=int, default=0, metavar='R',
                     help='if resume from previous model (default: No)')
 parser.add_argument('--lstm', type=bool, default=False, metavar='L',
                     help='if use LSTM (default: No)')
-
+parser.add_argument('--moveit', type=bool, default=False, metavar='M',
+                    help='if use moveit (default: No)')
 
 if __name__ == '__main__':
     args = parser.parse_args(rospy.myargv()[1:])
 
     torch.manual_seed(args.seed)
-    resume = args.resume  # whether load previous model
-    use_lstm = args.lstm    # whether use LSTM structure
+    resume = args.resume  # whether load previous model, default 0
+    use_lstm = args.lstm    # whether use LSTM structure, default false
+    use_moveit = args.moveit  # whether use moveit to execute action, default false
 
     use_cuda = True
 
     # Initilize ros environment, baxter agent
     rospy.init_node('baxter_hug')
-    env = Baxter()
+    env = Baxter(use_moveit)
 
     # Initialize a2c network
     actor_critic = ACNet(use_cuda, use_lstm)
@@ -58,7 +60,7 @@ if __name__ == '__main__':
 
     # Begin to work!
     # env.reset()
-    done = False
+    # done = False
 
 
     # Resume from models before
@@ -84,7 +86,7 @@ if __name__ == '__main__':
                 agent.actor_critic.hx = agent.actor_critic.hx.cuda()
 
         # Calculate writhe before this episode
-        _, w = env.reward_evaluation(0)
+        _, w, collision = env.reward_evaluation(0)
         print("Starting w:%f" % w)
 
         for step in range(10):
@@ -95,15 +97,21 @@ if __name__ == '__main__':
             # print("action:", action.data)
 
             env.act(action.cpu().numpy().squeeze())
-            reward, w = env.reward_evaluation(w)
+            reward, w, collision = env.reward_evaluation(w)
             print("reward:%f" % reward, "w:%f" % w)
 
             rollouts.insert(state, action, action_log_prob, action_entropy, reward, value)
+
+            if collision:
+                print "collision!!!!!!!!!!!!!!!!!!!!!!!"
+                done = True
 
             if done:
                 break
 
         value_terminal = torch.zeros(1, 1)
+        if use_cuda:
+            value_terminal = value_terminal.cuda()
         if not done:
             value_terminal = agent.actor_critic.getvalue(state)
         rollouts.values.append(value_terminal)
