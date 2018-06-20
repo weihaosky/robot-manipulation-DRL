@@ -136,7 +136,7 @@ class Baxter(object):
             GLI(self.cylinder1, self.cylinder2, limb_pose[10], limb_pose[11])[0] + \
             GLI(self.cylinder1, self.cylinder2, limb_pose[11], limb_pose[12])[0]
         w = np.abs(w)
-        reward = (w - w_last) * 20
+        reward = (w - w_last) * 100
 
         # Detect collision
         collision = 0
