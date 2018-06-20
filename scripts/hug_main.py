@@ -73,7 +73,7 @@ if __name__ == '__main__':
     else:
         episode_num = 0
 
-    while not rospy.is_shutdown() and episode_num <= 1000:
+    while not rospy.is_shutdown() and episode_num <= 2000:
 
         episode_num += 1
         env.reset()
