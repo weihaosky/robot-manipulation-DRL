@@ -19,9 +19,9 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                    help='random seed (default: 1)')
 parser.add_argument('--resume', type=int, default=0, metavar='R',
                     help='if resume from previous model (default: No)')
-parser.add_argument('--lstm', type=bool, default=False, metavar='L',
+parser.add_argument('--lstm', type=int, default=0, metavar='L',
                     help='if use LSTM (default: No)')
-parser.add_argument('--moveit', type=bool, default=False, metavar='M',
+parser.add_argument('--moveit', type=int, default=0, metavar='M',
                     help='if use moveit (default: No)')
 
 if __name__ == '__main__':

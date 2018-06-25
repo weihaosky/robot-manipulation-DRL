@@ -53,7 +53,7 @@ class Baxter(object):
 
         # Hugging target
         self.cylinder_height = 1.8
-        self.cylinder_radius = 0.1
+        self.cylinder_radius = 0.05
         self.cylinder1 = np.asarray([0.4, 0.0, -1.0])
         self.cylinder2 = np.asarray([0.4, 0.0, -1.0 + self.cylinder_height])
         segment = 10
@@ -123,6 +123,7 @@ class Baxter(object):
         print "load gazebo model"
         resp = self.load_model("hugging_target", "cylinder.sdf",
                            Pose(position=Point(x=cylinder_x, y=cylinder_y, z=cylinder_z)))
+        rospy.sleep(0.1)
         # Listen to collision information
         # rospy.Subscriber(self.collision_topic, String, self.collision_getter)
 
@@ -177,10 +178,10 @@ class Baxter(object):
         cylinder_move = math.hypot((current_cylinder_pos.x - self.cylinder2[0]),
                              (current_cylinder_pos.y - self.cylinder2[1]))
         if cylinder_move > 0.03:
-            collision = 1
-            reward = -1.0
+            collision = 1   # collision
+            reward = 0.0
             if step <= 2:
-                collision = -1
+                collision = -1  # model load error
 
         # Listen to collision information
         # msg = self.collision_getter.get_msg()
