@@ -4,6 +4,7 @@ import IPython
 import PyKDL
 import sys
 import random
+from scipy.spatial import Delaunay
 
 import rospy
 import rospkg
@@ -18,7 +19,7 @@ from std_msgs.msg import String
 
 from moveit_python import *
 import moveit_python
-from utils import InfoGetter, GLI
+from utils import InfoGetter, GLI, find_neighbors
 
 # rospy.init_node('baxter_hug')
 
@@ -32,6 +33,15 @@ class Baxter(object):
         self.right_limb_interface = baxter_interface.Limb('right')
         self.left_limb_interface = baxter_interface.Limb('left')
 
+        # Verify robot is enabled
+        print("Getting robot state... ")
+        self._rs = baxter_interface.RobotEnable()
+        self._init_state = self._rs.state().enabled
+        print("Enabling robot... ")
+        if not self._init_state:
+            self._rs.enable()
+
+
         if self.use_moveit:
             # moveit group setup
             moveit_commander.roscpp_initialize(sys.argv)
@@ -44,20 +54,39 @@ class Baxter(object):
         # Hugging target
         self.cylinder_height = 1.8
         self.cylinder_radius = 0.1
-        self.cylinder1 = (0.4, 0.0, -1.0)
-        self.cylinder2 = (0.4, 0.0, -1.0 + self.cylinder_height)
+        self.cylinder1 = np.asarray([0.4, 0.0, -1.0])
+        self.cylinder2 = np.asarray([0.4, 0.0, -1.0 + self.cylinder_height])
+        segment = 10
+        self.target_line = np.empty([segment, 3], float)
+        for i in range(segment):
+            self.target_line[i] = self.cylinder1 + (self.cylinder2 - self.cylinder1) * i
+
+        # Build line point graph for interaction mesh
+        if not self.use_moveit:
+            # Joint position control
+            self.right_limb_interface.move_to_neutral(timeout=10.0)
+        else:
+            # Moveit joint move
+            joint_goal = self.group.get_current_joint_values()
+            joint_goal[0] = 0.0
+            joint_goal[1] = -0.55
+            joint_goal[2] = 0.0
+            joint_goal[3] = 0.75
+            joint_goal[4] = 0.0
+            joint_goal[5] = 1.26
+            joint_goal[6] = 0.0
+            self.group.go(joint_goal, wait=True)
+            self.group.stop()
+        right_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
+        self.graph_points = np.concatenate((right_limb_pose[5:], self.target_line), 0)
+        self.triangulation = Delaunay(self.graph_points)
+        # IPython.embed()
+
 
         # Listen to collision information
         # self.collision_getter = InfoGetter()
         # self.collision_topic = "/hug_collision"
 
-        # Verify robot is enabled
-        print("Getting robot state... ")
-        self._rs = baxter_interface.RobotEnable()
-        self._init_state = self._rs.state().enabled
-        print("Enabling robot... ")
-        if not self._init_state:
-            self._rs.enable()
 
 
     def reset(self):
@@ -89,7 +118,7 @@ class Baxter(object):
         cylinder_y = random.uniform(-0.2, 0.2)
         cylinder_z = (self.cylinder2[2] - self.cylinder1[2]) / 2.0
         self.cylinder1 = (cylinder_x, cylinder_y, -1.0)
-        self.cylinder2 = (cylinder_x, cylinder_y, -1.0 + self.cylinder_height)
+        self.cylinder2 = (cylinder_x, cylinder_y, -1.0 + self.cylinder2[2] - self.cylinder1[2])
 
         print "load gazebo model"
         resp = self.load_model("hugging_target", "cylinder.sdf",
@@ -127,15 +156,13 @@ class Baxter(object):
         # Calculate writhe improvement
         rospy.sleep(0.01)
         limb = 'right'
-        limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, limb)
-        w = GLI(self.cylinder1, self.cylinder2, limb_pose[5], limb_pose[6])[0] + \
-            GLI(self.cylinder1, self.cylinder2, limb_pose[6], limb_pose[7])[0] + \
-            GLI(self.cylinder1, self.cylinder2, limb_pose[7], limb_pose[8])[0] + \
-            GLI(self.cylinder1, self.cylinder2, limb_pose[8], limb_pose[9])[0] + \
-            GLI(self.cylinder1, self.cylinder2, limb_pose[9], limb_pose[10])[0] + \
-            GLI(self.cylinder1, self.cylinder2, limb_pose[10], limb_pose[11])[0] + \
-            GLI(self.cylinder1, self.cylinder2, limb_pose[11], limb_pose[12])[0]
-        w = np.abs(w)
+        right_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, limb)
+        writhe = np.empty((len(self.target_line) - 1, 7))
+        for idx, segment in enumerate(self.target_line[:-1]):
+            for idx_robot in range(5, 12):
+                writhe[idx, idx_robot - 5] = GLI(self.target_line[idx], self.target_line[idx + 1],
+                                                 right_pose[idx_robot], right_pose[idx_robot + 1])[0]
+        w = np.abs(writhe.flatten().sum())
         reward = (w - w_last) * 100
 
         # Detect collision
@@ -183,15 +210,37 @@ class Baxter(object):
         state3 = np.concatenate((aa, bb), axis=0)
 
         # writhe matrix
-        state4 = np.asarray([GLI(self.cylinder1, self.cylinder2, right_pose[5], right_pose[6])[0],
-                             GLI(self.cylinder1, self.cylinder2, right_pose[6], right_pose[7])[0],
-                             GLI(self.cylinder1, self.cylinder2, right_pose[7], right_pose[8])[0],
-                             GLI(self.cylinder1, self.cylinder2, right_pose[8], right_pose[9])[0],
-                             GLI(self.cylinder1, self.cylinder2, right_pose[9], right_pose[10])[0],
-                             GLI(self.cylinder1, self.cylinder2, right_pose[10], right_pose[11])[0], \
-                             GLI(self.cylinder1, self.cylinder2, right_pose[11], right_pose[12])[0]]).flatten()
+        writhe = np.empty((len(self.target_line)-1, 7))
+        for idx, segment in enumerate(self.target_line[:-1]):
+            for idx_robot in range(5, 12):
+                writhe[idx, idx_robot-5] = GLI(self.target_line[idx], self.target_line[idx+1],
+                                             right_pose[idx_robot], right_pose[idx_robot+1])[0]
+        state4 = writhe.flatten()
+        # state4 = np.asarray([GLI(self.cylinder1, self.cylinder2, right_pose[5], right_pose[6])[0],
+        #                  GLI(self.cylinder1, self.cylinder2, right_pose[6], right_pose[7])[0],
+        #                  GLI(self.cylinder1, self.cylinder2, right_pose[7], right_pose[8])[0],
+        #                  GLI(self.cylinder1, self.cylinder2, right_pose[8], right_pose[9])[0],
+        #                  GLI(self.cylinder1, self.cylinder2, right_pose[9], right_pose[10])[0],
+        #                  GLI(self.cylinder1, self.cylinder2, right_pose[10], right_pose[11])[0],
+        #                  GLI(self.cylinder1, self.cylinder2, right_pose[11], right_pose[12])[0]]).flatten()
 
-        state = [state1, state2, state3, state4]
+        # interaction mesh
+        InterMesh = np.empty(self.graph_points.shape)
+        for idx, point in enumerate(self.graph_points):
+            neighbor_index = find_neighbors(idx, self.triangulation)
+            W = 0
+            Lap = point
+            # calculate normalization constant
+            for nei_point in self.graph_points[neighbor_index]:
+                W = W + 1.0 / math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
+            # calculate Laplace coordinates
+            for nei_point in self.graph_points[neighbor_index]:
+                dis_nei = math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
+                Lap = Lap - nei_point / ( dis_nei * W )
+            InterMesh[idx] = Lap
+        state5 = InterMesh.flatten()
+
+        state = [state1, state2, state3, state4, state5]
         return state
 
     def act(self, action):
@@ -312,9 +361,9 @@ def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
         pos = limb_frame[i].p
         rot = PyKDL.Rotation(limb_frame[i].M)
         rot = rot.GetQuaternion()
-        limb_pose.append( np.array([pos[0], pos[1], pos[2]]) )
+        limb_pose.append( [pos[0], pos[1], pos[2]] )
 
-    return limb_pose, kdl_array
+    return np.asarray(limb_pose), kdl_array
 
 
 

@@ -74,3 +74,7 @@ class InfoGetter(object):
         return self._msg
 
 
+def find_neighbors(pindex, triang):
+    return triang.vertex_neighbor_vertices[1][triang.vertex_neighbor_vertices[0][pindex]:triang.vertex_neighbor_vertices[0][pindex+1]]
+
+

@@ -37,9 +37,10 @@ if __name__ == '__main__':
     # Initilize ros environment, baxter agent
     rospy.init_node('baxter_hug')
     env = Baxter(use_moveit)
+    state = env.getstate()
 
     # Initialize a2c network
-    actor_critic = ACNet(use_cuda, use_lstm)
+    actor_critic = ACNet(state, use_cuda, use_lstm)
     if use_cuda:
         actor_critic.cuda()
 

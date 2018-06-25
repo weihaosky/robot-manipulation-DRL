@@ -44,10 +44,10 @@ class MLPBase(nn.Module):
         # self.max4 = nn.MaxPool2d(2)
         # # self.bn6 = nn.BatchNorm2d(128)
         
-        self.hidden11 = init_(nn.Linear(self.state_shape[0], 256))
-        self.hidden12 = init_(nn.Linear(self.state_shape[1], 256))
-        self.hidden13 = init_(nn.Linear(self.state_shape[2], 256))
-        self.hidden14 = init_(nn.Linear(self.state_shape[3], 256))
+        self.hidden11 = init_(nn.Linear(self.state_shape[3], 512))
+        self.hidden12 = init_(nn.Linear(self.state_shape[4], 512))
+        # self.hidden13 = init_(nn.Linear(self.state_shape[2], 256))
+        # self.hidden14 = init_(nn.Linear(self.state_shape[3], 256))
         self.hidden2 = init_(nn.Linear(1024, 512))
         if self.use_lstm:
             self.lstm = nn.LSTMCell(512, self.lstm_size)
@@ -74,20 +74,21 @@ class MLPBase(nn.Module):
         # x = self.max4(x)
         # x = x.view(-1, 8*8*128)
         # x, (hx,cx) = inputs
-        x1 = Variable(torch.from_numpy(state[0])).float()
-        x2 = Variable(torch.from_numpy(state[1])).float()
-        x3 = Variable(torch.from_numpy(state[2])).float()
-        x4 = Variable(torch.from_numpy(state[3])).float()
+        x1 = Variable(torch.from_numpy(state[3])).float()
+        x2 = Variable(torch.from_numpy(state[4])).float()
+        # x3 = Variable(torch.from_numpy(state[2])).float()
+        # x4 = Variable(torch.from_numpy(state[3])).float()
         if self.use_cuda:
             x1 = x1.cuda()
             x2 = x2.cuda()
-            x3 = x3.cuda()
-            x4 = x4.cuda()
+            # x3 = x3.cuda()
+            # x4 = x4.cuda()
         x1 = F.relu(self.hidden11(x1))
         x2 = F.relu(self.hidden12(x2))
-        x3 = F.relu(self.hidden13(x3))
-        x4 = F.relu(self.hidden11(x4))
-        x = torch.cat((x1, x2, x3, x4), -1)
+        # x3 = F.relu(self.hidden13(x3))
+        # x4 = F.relu(self.hidden14(x4))
+        # x = torch.cat((x1, x2, x3, x4), -1)
+        x = torch.cat((x1, x2), -1)
         x = F.relu(self.hidden2(x))
         x = x.view(-1, 512)
         if self.use_lstm:
@@ -100,14 +101,14 @@ class MLPBase(nn.Module):
 
 
 class ACNet(nn.Module):
-    def __init__(self, use_cuda, use_lstm):
+    def __init__(self, state, use_cuda, use_lstm):
         super(ACNet, self).__init__()
         self.use_cuda = use_cuda
         self.use_lstm = use_lstm
         self.lstm_size = 64
-        self.state_shape = [7, 30, 7, 7]
+        self.state_shape = [len(state[0]), len(state[1]), len(state[2]), len(state[3]), len(state[4])]
         self.action_dim = 7
-        self.network = MLPBase(state_shape=self.state_shape, action_dim=self.action_dim, \
+        self.network = MLPBase(state_shape=self.state_shape, action_dim=self.action_dim,
                                lstm_size=self.lstm_size, use_lstm=self.use_lstm, use_cuda=self.use_cuda)
         self.cx = Variable(torch.zeros(1, self.lstm_size))
         self.hx = Variable(torch.zeros(1, self.lstm_size))
