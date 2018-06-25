@@ -41,9 +41,8 @@ class Baxter(object):
         if not self._init_state:
             self._rs.enable()
 
-
         if self.use_moveit:
-            # moveit group setup
+            # Moveit group setup
             moveit_commander.roscpp_initialize(sys.argv)
             self.robot = moveit_commander.RobotCommander()
             self.scene = moveit_python.PlanningSceneInterface(self.robot.get_planning_frame())
@@ -58,7 +57,7 @@ class Baxter(object):
         self.cylinder2 = np.asarray([0.4, 0.0, -1.0 + self.cylinder_height])
         segment = 10
         self.target_line = np.empty([segment, 3], float)
-        for i in range(segment):
+        for i in range(len(self.target_line)):
             self.target_line[i] = self.cylinder1 + (self.cylinder2 - self.cylinder1) * i
 
         # Build line point graph for interaction mesh
@@ -78,16 +77,12 @@ class Baxter(object):
             self.group.go(joint_goal, wait=True)
             self.group.stop()
         right_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
-        self.graph_points = np.concatenate((right_limb_pose[5:], self.target_line), 0)
-        self.triangulation = Delaunay(self.graph_points)
-        # IPython.embed()
-
+        graph_points = np.concatenate((right_limb_pose[5:], self.target_line), 0)
+        self.triangulation = Delaunay(graph_points)
 
         # Listen to collision information
         # self.collision_getter = InfoGetter()
         # self.collision_topic = "/hug_collision"
-
-
 
     def reset(self):
         print "Resetting Baxter..."
@@ -117,8 +112,10 @@ class Baxter(object):
         cylinder_x = random.uniform(0.3, 0.7)
         cylinder_y = random.uniform(-0.2, 0.2)
         cylinder_z = (self.cylinder2[2] - self.cylinder1[2]) / 2.0
-        self.cylinder1 = (cylinder_x, cylinder_y, -1.0)
-        self.cylinder2 = (cylinder_x, cylinder_y, -1.0 + self.cylinder2[2] - self.cylinder1[2])
+        self.cylinder1 = np.asarray([cylinder_x, cylinder_y, -1.0])
+        self.cylinder2 = np.asarray([cylinder_x, cylinder_y, -1.0 + self.cylinder_height])
+        for i in range(len(self.target_line)):
+            self.target_line[i] = self.cylinder1 + (self.cylinder2 - self.cylinder1) * i
 
         print "load gazebo model"
         resp = self.load_model("hugging_target", "cylinder.sdf",
@@ -156,8 +153,7 @@ class Baxter(object):
 
         # Calculate writhe improvement
         rospy.sleep(0.01)
-        limb = 'right'
-        right_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, limb)
+        right_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         writhe = np.empty((len(self.target_line) - 1, 7))
         for idx, segment in enumerate(self.target_line[:-1]):
             for idx_robot in range(5, 12):
@@ -195,7 +191,7 @@ class Baxter(object):
 
     def getstate(self):
 
-        right_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
+        right_limb_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
         right_joint = [right_joint_pos[0], right_joint_pos[1], right_joint_pos[2], right_joint_pos[3], right_joint_pos[4], right_joint_pos[5], right_joint_pos[6]]
 
@@ -203,7 +199,7 @@ class Baxter(object):
         state1 = np.asarray(right_joint)
 
         # right limb link cartesian positions
-        state2 = np.asarray(right_pose[3:]).flatten()
+        state2 = np.asarray(right_limb_pose[5:]).flatten()
 
         # hugging target -- cylinder
         aa = np.asarray([self.cylinder_radius])
@@ -215,7 +211,7 @@ class Baxter(object):
         for idx, segment in enumerate(self.target_line[:-1]):
             for idx_robot in range(5, 12):
                 writhe[idx, idx_robot-5] = GLI(self.target_line[idx], self.target_line[idx+1],
-                                             right_pose[idx_robot], right_pose[idx_robot+1])[0]
+                                               right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
         state4 = writhe.flatten()
         # state4 = np.asarray([GLI(self.cylinder1, self.cylinder2, right_pose[5], right_pose[6])[0],
         #                  GLI(self.cylinder1, self.cylinder2, right_pose[6], right_pose[7])[0],
@@ -226,16 +222,17 @@ class Baxter(object):
         #                  GLI(self.cylinder1, self.cylinder2, right_pose[11], right_pose[12])[0]]).flatten()
 
         # interaction mesh
-        InterMesh = np.empty(self.graph_points.shape)
-        for idx, point in enumerate(self.graph_points):
+        graph_points = np.concatenate((right_limb_pose[5:], self.target_line), 0)
+        InterMesh = np.empty(graph_points.shape)
+        for idx, point in enumerate(graph_points):
             neighbor_index = find_neighbors(idx, self.triangulation)
             W = 0
             Lap = point
             # calculate normalization constant
-            for nei_point in self.graph_points[neighbor_index]:
+            for nei_point in graph_points[neighbor_index]:
                 W = W + 1.0 / math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
             # calculate Laplace coordinates
-            for nei_point in self.graph_points[neighbor_index]:
+            for nei_point in graph_points[neighbor_index]:
                 dis_nei = math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
                 Lap = Lap - nei_point / ( dis_nei * W )
             InterMesh[idx] = Lap

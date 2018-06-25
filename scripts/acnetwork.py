@@ -46,7 +46,7 @@ class MLPBase(nn.Module):
         
         self.hidden11 = init_(nn.Linear(self.state_shape[3], 512))
         self.hidden12 = init_(nn.Linear(self.state_shape[4], 512))
-        # self.hidden13 = init_(nn.Linear(self.state_shape[2], 256))
+        # self.hidden13 = init_(nn.Linear(self.state_shape[0], 256))
         # self.hidden14 = init_(nn.Linear(self.state_shape[3], 256))
         self.hidden2 = init_(nn.Linear(1024, 512))
         if self.use_lstm:
@@ -76,7 +76,7 @@ class MLPBase(nn.Module):
         # x, (hx,cx) = inputs
         x1 = Variable(torch.from_numpy(state[3])).float()
         x2 = Variable(torch.from_numpy(state[4])).float()
-        # x3 = Variable(torch.from_numpy(state[2])).float()
+        # x3 = Variable(torch.from_numpy(state[0])).float()
         # x4 = Variable(torch.from_numpy(state[3])).float()
         if self.use_cuda:
             x1 = x1.cuda()
