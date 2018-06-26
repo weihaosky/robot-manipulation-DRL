@@ -109,7 +109,7 @@ class Baxter(object):
         self.delete_model("hugging_target")
         rospy.sleep(0.1)
         # Randomly initialize target position
-        cylinder_x = random.uniform(0.3, 0.7)
+        cylinder_x = random.uniform(0.3, 0.8)
         cylinder_y = random.uniform(-0.2, 0.2)
         cylinder_z = (self.cylinder2[2] - self.cylinder1[2]) / 2.0
         self.cylinder1 = np.asarray([cylinder_x, cylinder_y, -1.0])
