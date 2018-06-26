@@ -1,14 +1,16 @@
 <?xml version="1.0"?>
 <sdf version="1.4">
     <model name="cylinder">
+    <static> True </static>
       <link name="link">
         <pose>0 0 0 0 0 0</pose>
 
         <collision name="cylinder_collision">
+        <pose>0 0 0.25 0 0 0</pose>
           <geometry>
             <cylinder>
               <radius>.05</radius>
-              <length>1.8</length>
+              <length>1.3</length>
             </cylinder>
           </geometry>
         </collision>
