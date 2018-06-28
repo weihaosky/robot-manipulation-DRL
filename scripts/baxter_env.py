@@ -1,4 +1,5 @@
 import numpy as np
+from numpy import asarray
 import math
 import IPython
 import PyKDL
@@ -50,20 +51,36 @@ class Baxter(object):
             self.group_name = "right_arm"
             self.group = moveit_commander.MoveGroupCommander(self.group_name)
 
-        # Hugging target
-        self.cylinder_height = 1.8
-        self.cylinder_radius = 0.05
-        self.cylinder1 = np.asarray([0.4, 0.0, -1.0])
-        self.cylinder2 = np.asarray([0.4, 0.0, -1.0 + self.cylinder_height])
-        segment = 10
-        self.target_line = np.empty([segment, 3], float)
-        for i in range(len(self.target_line)):
-            self.target_line[i] = self.cylinder1 + (self.cylinder2 - self.cylinder1) * i
+        # ######################## Create Hugging target #############################
+        self.hug_target = 2
+        if self.hug_target == 1:    # cylinder hugging target
+            self.cylinder1= asarray([0.4, 0.0, -1.0])   # robot frame, z = -1.0 w.r.t world frame
+            self.cylinder_height = 1.8
+            self.cylinder_radius = 0.05
+            segment = 10
+            self.target_line = np.empty([segment, 3], float)
+            for i in range(len(self.target_line)):
+                self.target_line[i] = self.cylinder1 + asarray([0, 0, self.cylinder_height])/9.0 * i
+
+        if self.hug_target == 2:    # humanoid hugging target # remember to make sure target_line correct + - y
+            self.target_pos = np.asarray([0.5, 0, -1.0]) # robot frame, z = -1.0 w.r.t world frame
+            self.target_line = np.empty([10, 3], float)
+            for i in range(5):
+                self.target_line[i] = self.target_pos + [0, 0, 0.5] + (asarray([0, 0, 1.3]) - asarray([0, 0, 0.5]))/5.0 * i
+                self.target_line[i+5] = self.target_pos + [0, 0, 1.3] + (asarray([0, -0.75, 1.3]) - asarray([0, 0, 1.3]))/4.0 * i
 
         # Build line point graph for interaction mesh
         if not self.use_moveit:
             # Joint position control
-            self.right_limb_interface.move_to_neutral(timeout=10.0)
+            # self.right_limb_interface.move_to_neutral(timeout=10.0)
+            cmd = dict()
+            start_point = [0.0, 1.0, 0.0, 0.5, 0.0, 1.26, 0.0]
+            for i, joint in enumerate(self.right_limb_interface.joint_names()):
+                cmd[joint] = start_point[i]
+            try:
+                self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
+            except Exception, e:
+                rospy.logerr('Error: %s', str(e))
         else:
             # Moveit joint move
             joint_goal = self.group.get_current_joint_values()
@@ -91,7 +108,15 @@ class Baxter(object):
 
         if not self.use_moveit:
             # Joint position control
-            self.right_limb_interface.move_to_neutral(timeout=10.0)
+            # self.right_limb_interface.move_to_neutral(timeout=10.0)
+            cmd = dict()
+            start_point = [0.0, 1.0, 0.0, 0.5, 0.0, 1.26, 0.0]
+            for i, joint in enumerate(self.right_limb_interface.joint_names()):
+                cmd[joint] = start_point[i]
+            try:
+                self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
+            except Exception, e:
+                rospy.logerr('Error: %s', str(e))
         else:
             # Moveit joint move
             joint_goal = self.group.get_current_joint_values()
@@ -108,19 +133,29 @@ class Baxter(object):
         # ###################### Reset hugging target ##########################
         self.delete_model("hugging_target")
         rospy.sleep(0.1)
-        # Randomly initialize target position
-        cylinder_x = random.uniform(0.3, 0.8)
-        cylinder_y = random.uniform(-0.2, 0.2)
-        cylinder_z = (self.cylinder2[2] - self.cylinder1[2]) / 2.0
-        self.cylinder1 = np.asarray([cylinder_x, cylinder_y, -1.0])
-        self.cylinder2 = np.asarray([cylinder_x, cylinder_y, -1.0 + self.cylinder_height])
-        for i in range(len(self.target_line)):
-            self.target_line[i] = self.cylinder1 + (self.cylinder2 - self.cylinder1) * i
+        if self.hug_target == 1:
+            # Randomly initialize target position
+            self.cylinder1[0] = random.uniform(0.3, 0.8)
+            self.cylinder1[1] = random.uniform(-0.2, 0.2)
+            cylinder_z = self.cylinder_height / 2.0
+            for i in range(len(self.target_line)):
+                self.target_line[i] = self.cylinder1 + asarray([0, 0, self.cylinder_height]) / 9.0 * i
 
-        print "load gazebo model"
-        resp = self.load_model("hugging_target", "cylinder.sdf",
-                           Pose(position=Point(x=cylinder_x, y=cylinder_y, z=cylinder_z)))
+            print "load gazebo model"
+            resp = self.load_model("hugging_target", "cylinder.sdf",
+                               Pose(position=Point(x=self.cylinder1[0], y=self.cylinder1[1], z=cylinder_z)))
+
+        if self.hug_target == 2:
+            self.target_line = self.target_line - self.target_pos
+            self.target_pos[0] = random.uniform(0.4, 0.8)
+            self.target_pos[1] = random.uniform(-0.2, 0.2)
+            self.target_line = self.target_line + self.target_pos
+            print "load gazebo model"
+            resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
+                                   Pose(position=Point(x=self.target_pos[0], y=self.target_pos[1], z=0)), type="urdf")
+
         rospy.sleep(0.1)
+        print("target line: ", self.target_line)
         # Listen to collision information
         # rospy.Subscriber(self.collision_topic, String, self.collision_getter)
 
@@ -136,14 +171,14 @@ class Baxter(object):
                 print "deleting target...",
 
             cylinder_name = "target"
-            cylinder_height = self.cylinder2[2] - self.cylinder1[2]
+            cylinder_height = self.cylinder_height
             # Add object to the planning scene for collision avoidance
             while 'target' not in self.scene.getKnownCollisionObjects():
                 self.scene.addCylinder(cylinder_name, cylinder_height, self.cylinder_radius,
                                        self.cylinder1[0], self.cylinder1[1], self.cylinder1[2] + cylinder_height / 2.0)
                 rospy.sleep(0.1)
                 print "adding target..."
-            print "cylinder_x: %f, cylinder_y: %f" % (cylinder_x, cylinder_y),
+            print "cylinder_x: %f, cylinder_y: %f" % (self.cylinder1[0], self.cylinder1[1]),
 
         print "done"
 
@@ -160,7 +195,7 @@ class Baxter(object):
                 writhe[idx, idx_robot - 5] = GLI(self.target_line[idx], self.target_line[idx + 1],
                                                  right_pose[idx_robot], right_pose[idx_robot + 1])[0]
         w = np.abs(writhe.flatten().sum())
-        reward = (w - w_last) * 100
+        reward = (w - w_last) * 100 - 5 + w*5
 
         # Detect collision
         collision = 0
@@ -170,10 +205,10 @@ class Baxter(object):
             state = g_get_state(model_name="hugging_target")
         except Exception, e:
             rospy.logerr('Error on calling service: %s', str(e))
-        current_cylinder_pos = state.pose.position
-        cylinder_move = math.hypot((current_cylinder_pos.x - self.cylinder2[0]),
-                             (current_cylinder_pos.y - self.cylinder2[1]))
-        if cylinder_move > 0.03:
+        current_pos = state.pose.position
+        target_move = math.hypot((current_pos.x - self.target_pos[0]),
+                             (current_pos.y - self.target_pos[1]))
+        if target_move > 0.1:
             collision = 1   # collision
             reward = 0.0
             if step <= 2:
@@ -202,11 +237,12 @@ class Baxter(object):
         state2 = np.asarray(right_limb_pose[5:]).flatten()
 
         # hugging target -- cylinder
-        aa = np.asarray([self.cylinder_radius])
-        bb = np.asarray([self.cylinder1, self.cylinder2]).flatten()
-        state3 = np.concatenate((aa, bb), axis=0)
+        # aa = np.asarray([self.cylinder_radius])
+        # bb = np.asarray([self.cylinder1, self.cylinder1 + asarray([0, 0, self.cylinder_height])]).flatten()
+        # state3 = np.concatenate((aa, bb), axis=0)
+        state3 = self.target_line.flatten()
 
-        # writhe matrix
+        # ####################### writhe matrix ###########################
         writhe = np.empty((len(self.target_line)-1, 7))
         for idx, segment in enumerate(self.target_line[:-1]):
             for idx_robot in range(5, 12):
@@ -221,7 +257,7 @@ class Baxter(object):
         #                  GLI(self.cylinder1, self.cylinder2, right_pose[10], right_pose[11])[0],
         #                  GLI(self.cylinder1, self.cylinder2, right_pose[11], right_pose[12])[0]]).flatten()
 
-        # interaction mesh
+        # ############################### interaction mesh ##################################
         graph_points = np.concatenate((right_limb_pose[5:], self.target_line), 0)
         InterMesh = np.empty(graph_points.shape)
         for idx, point in enumerate(graph_points):
@@ -273,7 +309,7 @@ class Baxter(object):
 
 
     def load_model(self, name, path, block_pose,
-                    block_reference_frame="world"):
+                    block_reference_frame="world", type="sdf"):
         # Get Models' Path
         model_path = "./gazebo_models/"
 
@@ -283,16 +319,26 @@ class Baxter(object):
             block_xml = block_file.read().replace('\n', '')
 
         # Spawn Block SDF
-        rospy.wait_for_service('/gazebo/spawn_sdf_model')
-        resp_sdf = 0
-        try:
-            spawn_sdf = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
-            resp_sdf = spawn_sdf(name, block_xml, "/",
-                                   block_pose, block_reference_frame)
-        except rospy.ServiceException, e:
-            rospy.logerr("Spawn SDF service call failed: {0}".format(e))
+        resp = 0
+        if type == "sdf":
+            rospy.wait_for_service('/gazebo/spawn_sdf_model')
+            try:
+                spawn_sdf = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
+                resp = spawn_sdf(name, block_xml, "/",
+                                       block_pose, block_reference_frame)
+            except rospy.ServiceException, e:
+                rospy.logerr("Spawn SDF service call failed: {0}".format(e))
 
-        return resp_sdf
+        if type == "urdf":
+            rospy.wait_for_service('/gazebo/spawn_urdf_model')
+            try:
+                spawn_urdf = rospy.ServiceProxy('/gazebo/spawn_urdf_model', SpawnModel)
+                resp = spawn_urdf(name, block_xml, "/",
+                                       block_pose, block_reference_frame)
+            except rospy.ServiceException, e:
+                rospy.logerr("Spawn URDF service call failed: {0}".format(e))
+
+        return resp
 
     def delete_model(self, name):
         try:

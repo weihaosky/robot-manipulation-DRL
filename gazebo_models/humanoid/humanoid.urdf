@@ -191,7 +191,7 @@
     <parent link="LeftUpperArm_link"/>
     <child link="LeftForeArm_link"/>
     <axis xyz="1 0 0"/>
-    <limit effort="30" velocity="1.0" lower="-0.7854" upper="0.7854" />
+    <limit effort="30" velocity="1.0" lower="-0.0" upper="0.0" />
   </joint>
 
   <joint name="RightUpperArm_joint" type="revolute" >
@@ -207,7 +207,7 @@
     <parent link="RightUpperArm_link"/>
     <child link="RightForeArm_link"/>
     <axis xyz="1 0 0"/>
-    <limit effort="30" velocity="1.0" lower="-0.7854" upper="0.7854" />
+    <limit effort="30" velocity="1.0" lower="-0.0" upper="0.0" />
   </joint>
 
   <joint name="Head_joint" type="fixed">
