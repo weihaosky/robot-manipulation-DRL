@@ -6,6 +6,7 @@ import math
 import threading
 from scipy.integrate import quad, dblquad, nquad
 
+
 def init(module, weight_init, bias_init, gain=1):
     weight_init(module.weight.data, gain=gain)
     bias_init(module.bias.data)

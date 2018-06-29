@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <robot name="humanoid">
+
   <link name="Torso_link">
     <inertial>
         <mass value="1" />
@@ -39,40 +40,78 @@
   </link>
 
 
-  <link name="Leftleg_link">
+  <link name="LeftLeg_link">
     <inertial>
         <mass value="10" />
         <inertia ixx="0.53958" ixy="0.0" ixz="0.0" iyy="0.53958" iyz="0.0" izz="0.0125"/>
     </inertial>
     <collision>
-    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.4" />
+    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.35"/>
       <geometry>
-        <cylinder radius="0.05" length="0.8" />
+        <cylinder radius="0.05" length="0.7" />
       </geometry>
     </collision>
     <visual>
-    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.4" />
+    <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 -0.35" />
       <geometry>
-        <cylinder radius="0.05" length="0.8" />
+        <cylinder radius="0.05" length="0.7" />
       </geometry>
     </visual>
   </link>
 
-  <link name="Rightleg_link">
+  <link name="LeftFoot_link">
+    <inertial>
+        <mass value="50" />
+        <inertia ixx="0.1354" ixy="0.0" ixz="0.0" iyy="0.4167" iyz="0.0" izz="0.46875"/>
+    </inertial>
+    <collision>
+    <origin rpy="0.0 0.0 0.0" xyz="0.1 0.0 -0.05"/>
+      <geometry>
+        <box size="0.3 0.15 0.1" />
+      </geometry>
+    </collision>
+    <visual>
+    <origin rpy="0.0 0.0 0.0" xyz="0.1 0.0 -0.05"/>
+      <geometry>
+        <box size="0.3 0.15 0.1" />
+      </geometry>
+    </visual>
+  </link>
+
+  <link name="RightLeg_link">
     <inertial>
         <mass value="10" />
         <inertia ixx="0.53958" ixy="0.0" ixz="0.0" iyy="0.53958" iyz="0.0" izz="0.0125"/>
     </inertial>
     <collision>
-    <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.0 -0.4" />
+    <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.0 -0.35" />
       <geometry>
-        <cylinder radius="0.05" length="0.8" />
+        <cylinder radius="0.05" length="0.7" />
       </geometry>
     </collision>
     <visual>
-    <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.0 -0.4" />
+    <origin rpy="0.0 0.0 0.0" xyz="0.0 -0.0 -0.35" />
       <geometry>
-        <cylinder radius="0.05" length="0.8" />
+        <cylinder radius="0.05" length="0.7" />
+      </geometry>
+    </visual>
+  </link>
+
+  <link name="RightFoot_link">
+    <inertial>
+        <mass value="50" />
+        <inertia ixx="0.1354" ixy="0.0" ixz="0.0" iyy="0.4167" iyz="0.0" izz="0.46875"/>
+    </inertial>
+    <collision>
+    <origin rpy="0.0 0.0 0.0" xyz="0.1 0.0 -0.05"/>
+      <geometry>
+        <box size="0.3 0.15 0.1" />
+      </geometry>
+    </collision>
+    <visual>
+    <origin rpy="0.0 0.0 0.0" xyz="0.1 0.0 -0.05"/>
+      <geometry>
+        <box size="0.3 0.15 0.1" />
       </geometry>
     </visual>
   </link>
@@ -162,18 +201,18 @@
 
 
 
-  <joint name="Leftleg_joint" type="revolute">
+  <joint name="LeftLeg_joint" type="revolute">
   <origin xyz="0.0 0.1 0.8" rpy="0.0 0.0 0.0"/> 
     <parent link="Torso_link"/>
-    <child link="Leftleg_link"/>
+    <child link="LeftLeg_link"/>
     <axis xyz="1 0 0"/>
     <limit effort="30" velocity="1.0" lower="-0.5" upper="0.5" />
   </joint>
 
-  <joint name="Rightleg_joint" type="revolute">
+  <joint name="RightLeg_joint" type="revolute">
   <origin xyz="0.0 -0.1 0.8" rpy="0.0 0.0 0.0"/> 
     <parent link="Torso_link"/>
-    <child link="Rightleg_link"/>
+    <child link="RightLeg_link"/>
     <axis xyz="1 0 0"/>
     <limit effort="30" velocity="1.0" lower="-0.5" upper="0.5" />
   </joint>
@@ -214,6 +253,20 @@
   <origin xyz="0.0 0.0 1.4" rpy="0.0 0.0 0.0"/> 
     <parent link="Torso_link"/>
     <child link="Head_link"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <joint name="LeftFoot_joint" type="fixed">
+  <origin xyz="0.0 0.0 -0.7" rpy="0.0 0.0 0.0"/> 
+    <parent link="LeftLeg_link"/>
+    <child link="LeftFoot_link"/>
+    <axis xyz="0 0 1"/>
+  </joint>
+
+  <joint name="RightFoot_joint" type="fixed">
+  <origin xyz="0.0 0.0 -0.7" rpy="0.0 0.0 0.0"/> 
+    <parent link="RightLeg_link"/>
+    <child link="RightFoot_link"/>
     <axis xyz="0 0 1"/>
   </joint>
 

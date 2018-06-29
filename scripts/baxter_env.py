@@ -22,7 +22,6 @@ from moveit_python import *
 import moveit_python
 from utils import InfoGetter, GLI, find_neighbors
 
-# rospy.init_node('baxter_hug')
 
 class Baxter(object):
     def __init__(self, use_moveit=False):
@@ -64,10 +63,10 @@ class Baxter(object):
 
         if self.hug_target == 2:    # humanoid hugging target # remember to make sure target_line correct + - y
             self.target_pos = np.asarray([0.5, 0, -1.0]) # robot frame, z = -1.0 w.r.t world frame
-            self.target_line = np.empty([10, 3], float)
-            for i in range(5):
-                self.target_line[i] = self.target_pos + [0, 0, 0.5] + (asarray([0, 0, 1.3]) - asarray([0, 0, 0.5]))/5.0 * i
-                self.target_line[i+5] = self.target_pos + [0, 0, 1.3] + (asarray([0, -0.75, 1.3]) - asarray([0, 0, 1.3]))/4.0 * i
+            self.target_line = np.empty([22, 3], float)
+            for i in range(11):
+                self.target_line[i] = self.target_pos + [0, 0, 0.5] + (asarray([0, 0, 1.5]) - asarray([0, 0, 0.5]))/10*i
+                self.target_line[i+11] = self.target_pos + [0, -0.75, 1.3] + (asarray([0, 0.75, 1.3]) - asarray([0, -0.75, 1.3]))/10*i
 
         # Build line point graph for interaction mesh
         if not self.use_moveit:
@@ -182,10 +181,7 @@ class Baxter(object):
 
         print "done"
 
-
-
     def reward_evaluation(self, w_last, step):
-
         # Calculate writhe improvement
         rospy.sleep(0.01)
         right_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
@@ -347,6 +343,10 @@ class Baxter(object):
         except rospy.ServiceException, e:
             rospy.loginfo("Delete Model service call failed: {0}".format(e))
 
+    def clear(self):
+        self.delete_model("hugging_target")
+        rospy.sleep(0.1)
+
 
 def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
     tip_link = limb + '_gripper'
@@ -380,7 +380,7 @@ def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
     # get the joint positions
     cur_type_values = limb_interface.joint_angles()
     while len(cur_type_values) != 7:
-        print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        print "Joint angles error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         cur_type_values = limb_interface.joint_angles()
     kdl_array = PyKDL.JntArray(num_jnts)
     for idx, name in enumerate(joint_names):

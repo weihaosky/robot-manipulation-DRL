@@ -133,7 +133,7 @@ if __name__ == '__main__':
         record = [reward_mean, value_mean, w]
         print("record:", record)
         Record.append(record)
-        if episode_num % 10 == 0:
+        if episode_num % 100 == 0:
             file_save = open(record_path + 'Record.pkl', 'wb')
             pickle.dump(Record, file_save)
             file_save.close()
@@ -146,8 +146,7 @@ if __name__ == '__main__':
             # torch.save(target_net.state_dict(), model_path + 'model_t-' + str(episode_num) + '.pt')
 
 
-
-
+    env.clear()
 
 
 
