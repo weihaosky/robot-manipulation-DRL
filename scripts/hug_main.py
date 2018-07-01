@@ -62,6 +62,8 @@ if __name__ == '__main__':
     # Begin to work!
     # env.reset()
     # done = False
+    # Remove models from the scene on shutdown
+    rospy.on_shutdown(env.clear())
 
 
     # Resume from models before
@@ -145,8 +147,6 @@ if __name__ == '__main__':
             torch.save(agent.actor_critic.network.state_dict(), model_path + 'model-' + str(episode_num) + '.pt')
             # torch.save(target_net.state_dict(), model_path + 'model_t-' + str(episode_num) + '.pt')
 
-
-    env.clear()
 
 
 

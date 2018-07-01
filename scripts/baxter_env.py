@@ -195,7 +195,6 @@ class Baxter(object):
                 writhe[idx-1, idx_robot - 5] = GLI(self.target_line[idx], self.target_line[idx + 1],
                                                  right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
         w = np.abs(writhe.flatten().sum())
-        IPython.embed()
         reward = (w - w_last) * 100 - 5 + w*5
 
         # Detect collision
