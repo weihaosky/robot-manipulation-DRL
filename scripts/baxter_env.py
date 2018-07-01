@@ -65,7 +65,7 @@ class Baxter(object):
             self.target_pos = np.asarray([0.5, 0, -1.0]) # robot frame, z = -1.0 w.r.t world frame
             self.target_line = np.empty([22, 3], float)
             for i in range(11):
-                self.target_line[i] = self.target_pos + [0, 0, 0.5] + (asarray([0, 0, 1.5]) - asarray([0, 0, 0.5]))/10*i
+                self.target_line[i] = self.target_pos + [0, 0, 1.5] - (asarray([0, 0, 1.5]) - asarray([0, 0, 0.5]))/10*i
                 self.target_line[i+11] = self.target_pos + [0, -0.75, 1.3] + (asarray([0, 0.75, 1.3]) - asarray([0, -0.75, 1.3]))/10*i
 
         # Build line point graph for interaction mesh
@@ -194,7 +194,10 @@ class Baxter(object):
             for idx_robot in range(5, 12):
                 writhe[idx-1, idx_robot - 5] = GLI(self.target_line[idx], self.target_line[idx + 1],
                                                  right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
-        w = np.abs(writhe.flatten().sum())
+        w1 = np.abs(writhe[0:10].flatten().sum())
+        w2 = np.abs(writhe[10:20].flatten().sum())
+        w = w1 + w2
+        # w = np.abs(writhe.flatten().sum())
         reward = (w - w_last) * 100 - 5 + w*5
 
         # Detect collision
