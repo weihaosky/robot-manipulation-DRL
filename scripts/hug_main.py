@@ -63,7 +63,7 @@ if __name__ == '__main__':
     # env.reset()
     # done = False
     # Remove models from the scene on shutdown
-    rospy.on_shutdown(env.clear())
+    rospy.on_shutdown(env.clear)
 
 
     # Resume from models before
