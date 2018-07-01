@@ -184,13 +184,18 @@ class Baxter(object):
     def reward_evaluation(self, w_last, step):
         # Calculate writhe improvement
         rospy.sleep(0.01)
-        right_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
-        writhe = np.empty((len(self.target_line) - 1, 7))
-        for idx, segment in enumerate(self.target_line[:-1]):
+        right_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
+        writhe = np.empty((len(self.target_line) - 2, 7))
+        for idx in range(10):
             for idx_robot in range(5, 12):
                 writhe[idx, idx_robot - 5] = GLI(self.target_line[idx], self.target_line[idx + 1],
-                                                 right_pose[idx_robot], right_pose[idx_robot + 1])[0]
+                                                 right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
+        for idx in range(11, 21):
+            for idx_robot in range(5, 12):
+                writhe[idx-1, idx_robot - 5] = GLI(self.target_line[idx], self.target_line[idx + 1],
+                                                 right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
         w = np.abs(writhe.flatten().sum())
+        IPython.embed()
         reward = (w - w_last) * 100 - 5 + w*5
 
         # Detect collision
@@ -239,10 +244,14 @@ class Baxter(object):
         state3 = self.target_line.flatten()
 
         # ####################### writhe matrix ###########################
-        writhe = np.empty((len(self.target_line)-1, 7))
-        for idx, segment in enumerate(self.target_line[:-1]):
+        writhe = np.empty((len(self.target_line)-2, 7))
+        for idx in range(10):
             for idx_robot in range(5, 12):
                 writhe[idx, idx_robot-5] = GLI(self.target_line[idx], self.target_line[idx+1],
+                                               right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
+        for idx in range(11, 21):
+            for idx_robot in range(5, 12):
+                writhe[idx-1, idx_robot-5] = GLI(self.target_line[idx], self.target_line[idx+1],
                                                right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
         state4 = writhe.flatten()
         # state4 = np.asarray([GLI(self.cylinder1, self.cylinder2, right_pose[5], right_pose[6])[0],
