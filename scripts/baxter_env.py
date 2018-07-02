@@ -109,6 +109,7 @@ class Baxter(object):
             # Joint position control
             # self.right_limb_interface.move_to_neutral(timeout=10.0)
             cmd = dict()
+            # s0, s1, e0, e1, w0, w1, w2
             start_point = [0.0, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
             for i, joint in enumerate(self.right_limb_interface.joint_names()):
                 cmd[joint] = start_point[i]
@@ -119,6 +120,7 @@ class Baxter(object):
         else:
             # Moveit joint move
             joint_goal = self.group.get_current_joint_values()
+            # s0, s1, e0, e1, w0, w1, w2
             joint_goal[0] = 0.0
             joint_goal[1] = -0.55
             joint_goal[2] = 0.0
