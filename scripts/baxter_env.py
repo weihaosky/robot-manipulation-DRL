@@ -213,7 +213,7 @@ class Baxter(object):
                              (current_pos.y - self.target_pos[1]))
         if target_move > 0.1:
             collision = 1   # collision
-            reward = 0.0
+            # reward = 0.0
             if step <= 2:
                 collision = -1  # model load error
 
