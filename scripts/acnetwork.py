@@ -122,15 +122,15 @@ class ACNet(nn.Module):
         # if self.use_cuda:
         #     states = states.cuda()
         value, action_mu, action_sigma, (self.hx, self.cx) = self.network(states, (self.hx, self.cx))
-        a_dist = Normal(action_mu, action_sigma)
+        a_dist = Normal(action_mu, action_sigma/10.0)
         action = a_dist.sample()
         a_log_probs = a_dist.log_prob(action)
         a_dist_entropy = a_dist.entropy()
 
-        # print "action_mu:",
-        # print action_mu
-        # print "action_sigma:",
-        # print action_sigma
+        print "action_mu:",
+        print action_mu
+        print "action_sigma:",
+        print action_sigma
         # print "value:",
         # print value
 

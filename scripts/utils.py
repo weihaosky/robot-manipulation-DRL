@@ -5,6 +5,7 @@ import numpy as np
 import math
 import threading
 from scipy.integrate import quad, dblquad, nquad
+import scipy.signal
 
 
 def init(module, weight_init, bias_init, gain=1):
@@ -77,5 +78,9 @@ class InfoGetter(object):
 
 def find_neighbors(pindex, triang):
     return triang.vertex_neighbor_vertices[1][triang.vertex_neighbor_vertices[0][pindex]:triang.vertex_neighbor_vertices[0][pindex+1]]
+
+
+def discount(x, gamma):
+    return scipy.signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
 
 

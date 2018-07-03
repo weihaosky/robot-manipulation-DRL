@@ -61,6 +61,7 @@ if __name__ == '__main__':
 
     # Begin to work!
     # env.reset()
+    # env.right_limb_interface.set_joint_position_speed(0.9)
     # done = False
     # Remove models from the scene on shutdown
     # rospy.on_shutdown(env.clear)
@@ -116,6 +117,7 @@ if __name__ == '__main__':
 
         if collision == -1:
             episode_num -= 1
+            rollouts.clear()
             continue
 
         value_terminal = torch.zeros(1, 1)

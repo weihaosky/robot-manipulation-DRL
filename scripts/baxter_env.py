@@ -14,9 +14,10 @@ from baxter_kdl.kdl_parser import kdl_tree_from_urdf_model
 from urdf_parser_py.urdf import URDF
 import moveit_commander
 import geometry_msgs.msg
-from gazebo_msgs.srv import SpawnModel, DeleteModel, GetModelState
+from gazebo_msgs.srv import SpawnModel, DeleteModel, GetModelState, GetLinkState
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import String
+import tf
 
 from moveit_python import *
 import moveit_python
@@ -33,12 +34,15 @@ class Baxter(object):
         self.right_limb_interface = baxter_interface.Limb('right')
         self.left_limb_interface = baxter_interface.Limb('left')
 
+        self.get_link_state = rospy.ServiceProxy("/gazebo/get_link_state", GetLinkState)
+        self.get_model_state = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
+
         # Verify robot is enabled
         print("Getting robot state... ")
         self._rs = baxter_interface.RobotEnable()
         self._init_state = self._rs.state().enabled
-        print("Enabling robot... ")
         if not self._init_state:
+            print("Enabling robot... ")
             self._rs.enable()
 
         if self.use_moveit:
@@ -53,27 +57,29 @@ class Baxter(object):
         # ######################## Create Hugging target #############################
         self.hug_target = 2
         if self.hug_target == 1:    # cylinder hugging target
-            self.cylinder1= asarray([0.4, 0.0, -1.0])   # robot frame, z = -1.0 w.r.t world frame
+            self.cylinder1= asarray([0.4, 0.0, -0.93])   # robot /base frame, z = -0.93 w.r.t /world frame
             self.cylinder_height = 1.8
             self.cylinder_radius = 0.05
             segment = 10
-            self.target_line = np.empty([segment, 3], float)
-            for i in range(len(self.target_line)):
-                self.target_line[i] = self.cylinder1 + asarray([0, 0, self.cylinder_height])/9.0 * i
+            self.target_line_start = np.empty([segment, 3], float)
+            for i in range(len(self.target_line_start)):
+                self.target_line_start[i] = self.cylinder1 + asarray([0, 0, self.cylinder_height])/9.0 * i
+            self.target_line = self.target_line_start
 
         if self.hug_target == 2:    # humanoid hugging target # remember to make sure target_line correct + - y
-            self.target_pos = np.asarray([0.5, 0, -1.0]) # robot frame, z = -1.0 w.r.t world frame
-            self.target_line = np.empty([22, 3], float)
+            self.target_pos_start = np.asarray([0.5, 0, -0.93]) # robot /base frame, z = -0.93 w.r.t /world frame
+            self.target_line_start = np.empty([22, 3], float)
             for i in range(11):
-                self.target_line[i] = self.target_pos + [0, 0, 1.5] - (asarray([0, 0, 1.5]) - asarray([0, 0, 0.5]))/10*i
-                self.target_line[i+11] = self.target_pos + [0, -0.45, 1.3] + (asarray([0, 0.45, 1.3]) - asarray([0, -0.45, 1.3]))/10*i
+                self.target_line_start[i] = self.target_pos_start + [0, -0.1, 1.8] - (asarray([0, -0.1, 1.8]) - asarray([0, -0.1, 0.5]))/10*i
+                self.target_line_start[i+11] = self.target_pos_start + [0, -0.45, 1.3] + (asarray([0, 0.45, 1.3]) - asarray([0, -0.45, 1.3]))/10*i
+            self.target_line = self.target_line_start
 
         # Build line point graph for interaction mesh
         if not self.use_moveit:
             # Joint position control
             # self.right_limb_interface.move_to_neutral(timeout=10.0)
             cmd = dict()
-            start_point = [0.0, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+            start_point = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
             for i, joint in enumerate(self.right_limb_interface.joint_names()):
                 cmd[joint] = start_point[i]
             try:
@@ -93,7 +99,7 @@ class Baxter(object):
             self.group.go(joint_goal, wait=True)
             self.group.stop()
         right_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
-        graph_points = np.concatenate((right_limb_pose[5:], self.target_line), 0)
+        graph_points = np.concatenate((right_limb_pose[5:], self.target_line_start), 0)
         self.triangulation = Delaunay(graph_points)
 
         # Listen to collision information
@@ -104,13 +110,15 @@ class Baxter(object):
         print "Resetting Baxter..."
         # limb = 'right'
         # limb_interface = baxter_interface.Limb(limb)
+        self.delete_model("hugging_target")
+        rospy.sleep(0.1)
 
         if not self.use_moveit:
             # Joint position control
             # self.right_limb_interface.move_to_neutral(timeout=10.0)
             cmd = dict()
             # s0, s1, e0, e1, w0, w1, w2
-            start_point = [0.0, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+            start_point = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
             for i, joint in enumerate(self.right_limb_interface.joint_names()):
                 cmd[joint] = start_point[i]
             try:
@@ -132,31 +140,31 @@ class Baxter(object):
             self.group.stop()
 
         # ###################### Reset hugging target ##########################
-        self.delete_model("hugging_target")
-        rospy.sleep(0.1)
         if self.hug_target == 1:
             # Randomly initialize target position
             self.cylinder1[0] = random.uniform(0.3, 0.8)
             self.cylinder1[1] = random.uniform(-0.2, 0.2)
             cylinder_z = self.cylinder_height / 2.0
-            for i in range(len(self.target_line)):
-                self.target_line[i] = self.cylinder1 + asarray([0, 0, self.cylinder_height]) / 9.0 * i
+            for i in range(len(self.target_line_start)):
+                self.target_line_start[i] = self.cylinder1 + asarray([0, 0, self.cylinder_height]) / 9.0 * i
+            self.target_line = self.target_line_start
 
             print "load gazebo model"
             resp = self.load_model("hugging_target", "cylinder.sdf",
                                Pose(position=Point(x=self.cylinder1[0], y=self.cylinder1[1], z=cylinder_z)))
 
         if self.hug_target == 2:
-            self.target_line = self.target_line - self.target_pos
-            self.target_pos[0] = random.uniform(0.4, 0.8)
-            self.target_pos[1] = random.uniform(-0.2, 0.2)
-            self.target_line = self.target_line + self.target_pos
+            self.target_line_start = self.target_line_start - self.target_pos_start
+            self.target_pos_start[0] = random.uniform(0.4, 0.8)
+            self.target_pos_start[1] = random.uniform(-0.2, 0.2)
+            self.target_line_start = self.target_line_start + self.target_pos_start
+            self.target_line = self.target_line_start
             print "load gazebo model"
             resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
-                                   Pose(position=Point(x=self.target_pos[0], y=self.target_pos[1], z=0)), type="urdf")
+                                   Pose(position=Point(x=self.target_pos_start[0], y=self.target_pos_start[1], z=0)), type="urdf")
 
         rospy.sleep(0.1)
-        print("target line: ", self.target_line)
+        print("target line start: ", self.target_line_start)
         # Listen to collision information
         # rospy.Subscriber(self.collision_topic, String, self.collision_getter)
 
@@ -184,6 +192,21 @@ class Baxter(object):
         print "done"
 
     def reward_evaluation(self, w_last, step):
+
+
+        rospy.wait_for_service('/gazebo/get_link_state')
+        torso_pose = self.get_link_state("hugging_target::Torso_link", "world").link_state.pose
+        T = tf.transformations.quaternion_matrix([torso_pose.orientation.x,
+                                              torso_pose.orientation.y,
+                                              torso_pose.orientation.z,
+                                              torso_pose.orientation.w])
+        # rotation in /world frame, which is [0, 0, -0.93] to /base frame
+        # target_line_start-target_pos_start is the original position of human in /world frame
+        self.target_line = np.dot(T[:3,:3], (self.target_line_start-self.target_pos_start).T).T + \
+                                   [torso_pose.position.x, torso_pose.position.y, torso_pose.position.z] + \
+                                    [0, 0, -0.93]
+        print self.target_line
+
         # Calculate writhe improvement
         rospy.sleep(0.01)
         right_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
@@ -204,15 +227,14 @@ class Baxter(object):
 
         # Detect collision
         collision = 0
-        g_get_state = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
         rospy.wait_for_service("/gazebo/get_model_state")
         try:
-            state = g_get_state(model_name="hugging_target")
+            state = self.get_model_state(model_name="hugging_target")
         except Exception, e:
             rospy.logerr('Error on calling service: %s', str(e))
         current_pos = state.pose.position
-        target_move = math.hypot((current_pos.x - self.target_pos[0]),
-                             (current_pos.y - self.target_pos[1]))
+        target_move = math.hypot((current_pos.x - self.target_pos_start[0]),
+                             (current_pos.y - self.target_pos_start[1]))
         if target_move > 0.1:
             collision = 1   # collision
             # reward = 0.0
