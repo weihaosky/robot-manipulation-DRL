@@ -65,7 +65,7 @@ class PPOagent(object):
                     value_loss = value_loss + self.value_loss_coef * advantage.pow(2)
 
                     # Generalized Advantage Estimataion
-                    delta_t = rewards_batch[i] + self.gamma * values[i + 1] - values[i]
+                    delta_t = rewards_batch[i] + self.gamma * values[i + 1] - values[i]     # values or old value batchs?
                     gae = gae * self.gamma * self.tau + delta_t
                     ratio = torch.exp(action_log_probs[i] - old_action_log_probs_batch[i])
                     print("ratio:", ratio)

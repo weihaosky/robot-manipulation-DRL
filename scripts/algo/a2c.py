@@ -25,14 +25,19 @@ class A2Cagent(object):
 
     def update(self, rollouts):
 
-        states = rollouts.states
-        actions = rollouts.actions
-        rewards = Variable(torch.from_numpy(np.asarray(rollouts.rewards))).float()
+        states_batch = rollouts.states
+        actions_batch = rollouts.actions
+        rewards_batch = Variable(torch.from_numpy(np.asarray(rollouts.rewards))).float()
         if self.use_cuda:
-            rewards = rewards.cuda()
-        values = rollouts.values
-        action_log_probs = rollouts.action_log_probs
-        entropies = rollouts.entropies
+            rewards_batch = rewards_batch.cuda()
+        values_batch = rollouts.values
+        action_log_probs_batch = rollouts.action_log_probs
+        entropies_batch = rollouts.entropies
+        memory_batch = rollouts.memory
+
+        values, action_log_probs, a_dist_entropies, memory = self.actor_critic.evaluate_actions(states_batch,
+                                                                                                actions_batch,
+                                                                                                memory_batch)
 
         action_loss = 0
         value_loss = 0
@@ -42,18 +47,17 @@ class A2Cagent(object):
             gae = gae.cuda()
             R = R.cuda()
 
-        for i in reversed(range(len(rewards))):
-            R = self.gamma * R + rewards[i]
+        for i in reversed(range(len(rewards_batch))):
+            R = self.gamma * R + rewards_batch[i]
             advantage = R - values[i]
             value_loss = value_loss + self.value_loss_coef * advantage.pow(2)
 
             # Generalized Advantage Estimataion
-            delta_t = rewards[i] + self.gamma * values[i + 1] - values[i]
+            delta_t = rewards_batch[i] + self.gamma * values[i + 1] - values[i]
             gae = gae * self.gamma * self.tau + delta_t
 
             action_loss = action_loss - \
-                          (action_log_probs[i] * gae - self.entropy_coef * entropies[i]).sum()
-
+                          (action_log_probs[i] * gae - self.entropy_coef * a_dist_entropies[i]).sum()
 
         loss = value_loss * self.value_loss_coef + action_loss
 
