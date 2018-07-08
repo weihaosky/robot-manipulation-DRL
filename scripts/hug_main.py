@@ -1,5 +1,6 @@
 from acnetwork import *
 from baxter_env import *
+import algo
 
 import sys
 import rospy
@@ -7,11 +8,10 @@ import os
 import IPython
 import numpy as np
 import time
+import copy
 
 import pickle
 import argparse
-
-
 
 
 parser = argparse.ArgumentParser(description='A2C')
@@ -23,6 +23,8 @@ parser.add_argument('--lstm', type=int, default=0, metavar='L',
                     help='if use LSTM (default: No)')
 parser.add_argument('--moveit', type=int, default=0, metavar='M',
                     help='if use moveit (default: No)')
+parser.add_argument('--algo', default="a2c",
+                    help='algorithm to use: a2c | ppo')
 
 if __name__ == '__main__':
     args = parser.parse_args(rospy.myargv()[1:])
@@ -45,8 +47,12 @@ if __name__ == '__main__':
         actor_critic.cuda()
 
     # Initialize learning agent
-    agent = A2Cagent(actor_critic, lr = 1e-4)
+    if args.algo == "a2c":
+        agent = algo.A2Cagent(actor_critic, lr = 1e-4)
+    elif args.algo == "ppo":
+        agent = algo.PPOagent(actor_critic, lr=1e-4, ppo_epoch=1, clip_param=0.1)
     rollouts = Rollouts()
+    buffer = Buffer()
 
     # Save the training models
     model_path = "./model_baxter_net/"
@@ -92,19 +98,22 @@ if __name__ == '__main__':
         # Calculate writhe before this episode
         _, w, collision = env.reward_evaluation(0, 0)
         print("Starting w:%f" % w)
+        # store the hxcx before the 1st step
+        rollouts.memory.append(copy.deepcopy((agent.actor_critic.hx, agent.actor_critic.cx)))
 
-        for step in range(1, 11):
+        for step in range(1, 5):
             print "episode: %d, step:%d" % (episode_num, step)
             state = env.getstate()
-            value, action, action_log_prob, action_entropy = \
-                agent.actor_critic.act(state)
-            # print("action:", action.data)
+            with torch.no_grad():
+                value, action, action_log_prob, action_entropy = \
+                    agent.actor_critic.act(state)
+                # print("action:", action.data)
 
             env.act(action.cpu().numpy().squeeze())
             reward, w, collision = env.reward_evaluation(w, step)
             print("reward:%f" % reward, "w:%f" % w)
 
-            rollouts.insert(state, action, action_log_prob, action_entropy, reward, value)
+            rollouts.insert(state, action, action_log_prob, action_entropy, reward, value, (agent.actor_critic.hx, agent.actor_critic.cx))
 
             if collision == 1:
                 print "collision!!!!!!!!!!!!!!!!!!!!!!!"
@@ -123,10 +132,19 @@ if __name__ == '__main__':
         value_terminal = torch.zeros(1, 1)
         if use_cuda:
             value_terminal = value_terminal.cuda()
+        state = env.getstate()
         if not done:
-            value_terminal = agent.actor_critic.getvalue(state)
-        rollouts.values.append(value_terminal)
-        agent.update(rollouts)
+            with torch.no_grad():
+                value_terminal = agent.actor_critic.getvalue(state)
+        rollouts.states.append(copy.deepcopy(state))
+        rollouts.values.append(copy.deepcopy(value_terminal))
+
+
+        if args.algo == "a2c":
+            loss = agent.update(rollouts)
+        if args.algo == "ppo":
+            buffer.insert(rollouts)
+            loss = agent.update(buffer)
 
         # record the training information for analysis
         reward_mean = np.asarray(rollouts.rewards).mean()
@@ -134,9 +152,9 @@ if __name__ == '__main__':
         for item in rollouts.values:
             values.append(item.cpu().detach().numpy())
         value_mean = np.asarray(values).mean()
-        record = [reward_mean, value_mean, w]
+        record = [reward_mean, value_mean, w, loss.cpu().detach().numpy]
         print("record:", record)
-        Record.append(record)
+        Record.append(copy.deepcopy(record))
         if episode_num % 100 == 0:
             file_save = open(record_path + 'Record.pkl', 'wb')
             pickle.dump(Record, file_save)

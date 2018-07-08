@@ -5,15 +5,14 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.distributions import Categorical, Normal
 
-
 import math
 import random
 import numpy as np
 from collections import deque
+import copy
 import IPython
 
 from utils import init, init_normc_
-
 
 
 class MLPBase(nn.Module):
@@ -43,7 +42,7 @@ class MLPBase(nn.Module):
         # self.conv6 = nn.Conv2d(128, 128, kernel_size=3, stride=1, padding = 1)
         # self.max4 = nn.MaxPool2d(2)
         # # self.bn6 = nn.BatchNorm2d(128)
-        
+
         self.hidden11 = init_(nn.Linear(self.state_shape[3], 512))
         self.hidden12 = init_(nn.Linear(self.state_shape[4], 512))
         # self.hidden13 = init_(nn.Linear(self.state_shape[0], 256))
@@ -61,7 +60,6 @@ class MLPBase(nn.Module):
             self.action_head = init_(nn.Linear(512, self.action_dim))
             self.action_sigma = init_(nn.Linear(512, self.action_dim))
             self.value_head = init_(nn.Linear(512, 1))
-
 
     def forward(self, state, (hx, cx)):
         # x = x.float().div(255.0)
@@ -116,13 +114,12 @@ class ACNet(nn.Module):
             self.cx = self.cx.cuda()
             self.hx = self.hx.cuda()
 
-
     def act(self, states):
         # states = Variable(torch.from_numpy(states))
         # if self.use_cuda:
         #     states = states.cuda()
         value, action_mu, action_sigma, (self.hx, self.cx) = self.network(states, (self.hx, self.cx))
-        a_dist = Normal(action_mu, action_sigma/10.0)
+        a_dist = Normal(action_mu, action_sigma)
         action = a_dist.sample()
         a_log_probs = a_dist.log_prob(action)
         a_dist_entropy = a_dist.entropy()
@@ -130,7 +127,9 @@ class ACNet(nn.Module):
         print "action_mu:",
         print action_mu
         print "action_sigma:",
-        print action_sigma
+        # print action_sigma
+        # print("action:", action)
+        # print("hx,cx:",self.hx,self.cx)
         # print "value:",
         # print value
 
@@ -143,69 +142,26 @@ class ACNet(nn.Module):
         value, _, _, _ = self.network(states, (self.hx, self.cx))
         return value
 
-    def evaluate_actions(self, states, action):
-        value, action_mu, action_sigma, (self.hx, self.cx) = self.network(states, (self.hx, self.cx))
-        a_dist = Normal(action_mu, action_sigma)
+    def evaluate_actions(self, states, action, memory):
+        hx = [hxcx[0] for hxcx in memory]
+        cx = [hxcx[1] for hxcx in memory]
+        len_batch = len(action)
+        print("len_batch:", len_batch)
+        value = [None] * (len_batch + 1)
+        action_mu = [None] * len_batch
+        action_sigma = [None] * len_batch
+        a_dist = [None] * len_batch
+        a_log_probs = [None] * len_batch
+        a_dist_entropy = [None] * len_batch
 
-        a_log_probs = a_dist.log_prob(action)
-        a_dist_entropy = a_dist.entropy().mean()
+        for i in range(len_batch):
+            value[i], action_mu[i], action_sigma[i], (hx[i], cx[i]) = self.network(states[i], (hx[i], cx[i]))
+            a_dist[i] = Normal(action_mu[i], action_sigma[i])
+            a_log_probs[i] = a_dist[i].log_prob(action[i])
+            a_dist_entropy[i] = a_dist[i].entropy()
+        value[i+1], _, _, _ = self.network(states[i+1], (hx[i+1], cx[i+1]))
 
-        return value, a_log_probs, a_dist_entropy
-
-
-class A2Cagent(object):
-    def __init__(self,
-                 actor_critic,
-                 lr = 1e-4,
-                 use_cuda = True):
-        self.gamma = 0.99   # discounting factor
-        self.tau = 1.0   # used for calculating GAE
-
-        self.actor_critic = actor_critic
-        self.value_loss_coef = 0.5
-        self.entropy_coef = 0.01
-
-        self.optimizer = optim.Adam(self.actor_critic.parameters(), lr)
-        self.use_cuda = self.actor_critic.use_cuda
-
-    def update(self, rollouts):
-
-        states = rollouts.states
-        actions = rollouts.actions
-        rewards = Variable(torch.from_numpy(np.asarray(rollouts.rewards))).float()
-        if self.use_cuda:
-            rewards = rewards.cuda()
-        values = rollouts.values
-        action_log_probs = rollouts.action_log_probs
-        entropies = rollouts.entropies
-
-        action_loss = 0
-        value_loss = 0
-        gae = Variable(torch.zeros(1, 1))
-        R = Variable(torch.zeros(1,1))
-        if self.use_cuda:
-            gae = gae.cuda()
-            R = R.cuda()
-
-        for i in reversed(range(len(rewards))):
-            R = self.gamma * R + rewards[i]
-            advantage = R - values[i]
-            value_loss = value_loss + self.value_loss_coef * advantage.pow(2)
-
-            # Generalized Advantage Estimataion
-            delta_t = rewards[i] + self.gamma * values[i + 1] - values[i]
-            gae = gae * self.gamma * self.tau + delta_t
-
-            action_loss = action_loss - \
-                          (action_log_probs[i] * gae - self.entropy_coef * entropies[i]).sum()
-
-
-        loss = value_loss * self.value_loss_coef + action_loss
-
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.actor_critic.parameters(), 40)
-        self.optimizer.step()
+        return value, a_log_probs, a_dist_entropy, (hx, cx)
 
 
 class Rollouts(object):
@@ -216,15 +172,17 @@ class Rollouts(object):
         self.entropies = []
         self.rewards = []
         self.values = []
+        self.memory = []
 
-
-    def insert(self, state, action, action_log_prob, entropy, reward, value):
-        self.states.append(state)
-        self.actions.append(action)
-        self.action_log_probs.append(action_log_prob)
-        self.rewards.append(reward)
-        self.entropies.append(entropy)
-        self.values.append(value)
+    def insert(self, state, action, action_log_prob, entropy, reward, value, memory):
+        IPython.embed()
+        self.states.append(copy.deepcopy(state))
+        self.actions.append(copy.deepcopy(action))
+        self.action_log_probs.append(copy.deepcopy(action_log_prob))
+        self.rewards.append(copy.deepcopy(reward))
+        self.entropies.append(copy.deepcopy(entropy))
+        self.values.append(copy.deepcopy(value))
+        self.memory.append(copy.deepcopy(memory))
 
     def clear(self):
         self.states = []
@@ -233,92 +191,24 @@ class Rollouts(object):
         self.rewards = []
         self.entropies = []
         self.values = []
+        self.memory = []
 
 
-
-
-
-
-
-
-
-
-class ReplayBuffer():
-    REPLAY_MEMORY = 150000 # number of previous transitions to remember
+class Buffer(object):
     def __init__(self):
-        self.replayMemory = deque()
-    def setPerception(self, currentState, action, reward, nextState, terminal):
-        self.replayMemory.append((currentState, action, reward, nextState, terminal))
-        if len(self.replayMemory) > self.REPLAY_MEMORY:
-            self.replayMemory.popleft()
+        self.size = 4
+        self.roll = []
 
+    def insert(self, rollouts):
+        if len(self.roll) >= 4:
+            self.roll.pop(0)
+        self.roll.append(copy.deepcopy(rollouts))
 
-def train(T_net, P_net, buffer):
-    BATCH_SIZE = 32
-    GAMMA = 0.99
-    optimizer = optim.Adam(P_net.parameters(), lr=1e-4)
+    def generator(self):
+        perm = torch.randperm(len(self.roll))
+        for i in range(len(self.roll)):
+            print("replay order:", i)
+            yield self.roll[i]
 
-    if len(buffer.replayMemory) < BATCH_SIZE:
-        return
-    # Step 1: obtain random minibatch from replay memory
-    minibatch = random.sample(buffer.replayMemory, BATCH_SIZE)
-    state_batch = Variable(torch.from_numpy(np.asarray([data[0] for data in minibatch]).transpose((0, 3, 1, 2))).cuda())
-    ac_batch = Variable(torch.from_numpy(np.asarray([data[1] for data in minibatch])).cuda())
-    reward_batch = Variable(torch.from_numpy(np.asarray([data[2] for data in minibatch])).cuda()).float()
-    nextState_batch = Variable(torch.from_numpy(np.asarray([data[3] for data in minibatch]).transpose((0, 3, 1, 2))).cuda())
-
-    # Step 2: calculate y
-    nextState_batch.volatile = True
-    value_next_batch = T_net(nextState_batch)[0]
-    targetQ_batch = reward_batch[0].float() + GAMMA * value_next_batch[0]
-    for i in range(1, BATCH_SIZE):
-        targetQ_batch = torch.cat((targetQ_batch, reward_batch[i].float() + GAMMA * value_next_batch[i]), 0)
-
-    value_head = P_net(state_batch)[0]
-    targetQ_batch.volatile = False
-    value_loss = F.mse_loss(value_head, targetQ_batch, size_average=False)
-
-    action_head = T_net(state_batch)[1]
-    aprob_batch = action_head[0][ac_batch[0]]
-    for i in range(1, BATCH_SIZE):
-        aprob_batch = torch.cat((aprob_batch, action_head[i][ac_batch[i]]), 0)
-
-    policy_loss = -torch.log(aprob_batch) * (targetQ_batch - value_head.view(32))
-    policy_loss = policy_loss.sum()
-
-    entropy = (-aprob_batch * torch.log(aprob_batch)).sum()
-
-    print "v loss: ",
-    print value_loss,
-    print "p loss: ",
-    print policy_loss
-
-    loss = value_loss + policy_loss - 0.01 * entropy
-
-    # Optimize the model
-    optimizer.zero_grad()
-    loss.backward()
-    # for param in Primary_DQN.parameters():
-    #     param.grad.data.clamp_(-1, 1)
-    optimizer.step()
-
-    return loss
-
-
-def updateTarget(Target_DQN, Primary_DQN):
-    TAU = 0.001
-    for (W_p, W_t) in zip(Primary_DQN.parameters(), Target_DQN.parameters()):
-        W_t.data = W_t.data * (1-TAU) + W_p.data * TAU
-
-
-def select_action(x, target_net, episode_number, Distance, Block_position_last, Target_x):
-    x = Variable(torch.from_numpy(x.transpose((0, 3, 1, 2))).cuda(), volatile=True)
-    # x = Variable(torch.from_numpy(x).cuda(), volatile=True)
-    value, actions = target_net(x)
-    value = value.cpu().data[0].numpy()
-    action = actions.multinomial().cpu().data[0].numpy()
-    aprob = actions.cpu().data[0].numpy()[action]
-
-
-    return action, actions, aprob, value
-
+    def clear(self):
+        self.roll = []

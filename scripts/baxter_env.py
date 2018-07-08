@@ -160,11 +160,12 @@ class Baxter(object):
             self.target_line_start = self.target_line_start + self.target_pos_start
             self.target_line = self.target_line_start
             print "load gazebo model"
+            IPython.embed()
             resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
                                    Pose(position=Point(x=self.target_pos_start[0], y=self.target_pos_start[1], z=0)), type="urdf")
 
         rospy.sleep(0.1)
-        print("target line start: ", self.target_line_start)
+        # print("target line start: ", self.target_line_start)
         # Listen to collision information
         # rospy.Subscriber(self.collision_topic, String, self.collision_getter)
 
@@ -205,7 +206,6 @@ class Baxter(object):
         self.target_line = np.dot(T[:3,:3], (self.target_line_start-self.target_pos_start).T).T + \
                                    [torso_pose.position.x, torso_pose.position.y, torso_pose.position.z] + \
                                     [0, 0, -0.93]
-        print self.target_line
 
         # Calculate writhe improvement
         rospy.sleep(0.01)
@@ -316,7 +316,7 @@ class Baxter(object):
         if not self.use_moveit:
             cmd = dict()
             for i, joint in enumerate(self.right_limb_interface.joint_names()):
-                cmd[joint] = 0.2 * action[i]
+                cmd[joint] = action[i]
             # ########## delta Joint position control ###############
             cur_type_values = self.right_limb_interface.joint_angles()
             for i, joint in enumerate(self.right_limb_interface.joint_names()):
@@ -329,7 +329,7 @@ class Baxter(object):
             # ########## moveit joint position move #####################
             joint_goal = self.group.get_current_joint_values()
             for i in range(7):
-                joint_goal[i] = joint_goal[i] + 0.2 * action[i]
+                joint_goal[i] = joint_goal[i] + action[i]
             try:
                 self.group.go(joint_goal, wait=True)
             except Exception, e:
