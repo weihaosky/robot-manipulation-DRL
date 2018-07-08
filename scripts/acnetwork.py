@@ -175,7 +175,6 @@ class Rollouts(object):
         self.memory = []
 
     def insert(self, state, action, action_log_prob, entropy, reward, value, memory):
-        IPython.embed()
         self.states.append(copy.deepcopy(state))
         self.actions.append(copy.deepcopy(action))
         self.action_log_probs.append(copy.deepcopy(action_log_prob))

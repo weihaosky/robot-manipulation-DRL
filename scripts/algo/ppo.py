@@ -18,9 +18,11 @@ class PPOagent(object):
                  lr=1e-4,
                  ppo_epoch=1,
                  clip_param=0.1,
+                 gamma=0.99,
+                 tau=1.0,
                  use_cuda=True):
-        self.gamma = 0.99  # discounting factor
-        self.tau = 1.0  # used for calculating GAE
+        self.gamma = gamma  # discounting factor
+        self.tau = tau  # used for calculating GAE
         self.clip_param = clip_param
         self.ppo_epoch = ppo_epoch
 

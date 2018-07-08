@@ -10,9 +10,11 @@ class A2Cagent(object):
     def __init__(self,
                  actor_critic,
                  lr = 1e-4,
+                 gamma=0.99,
+                 tau=1.0,
                  use_cuda = True):
-        self.gamma = 0.99   # discounting factor
-        self.tau = 1.0   # used for calculating GAE
+        self.gamma = gamma   # discounting factor
+        self.tau = tau   # used for calculating GAE
 
         self.actor_critic = actor_critic
         self.value_loss_coef = 0.5

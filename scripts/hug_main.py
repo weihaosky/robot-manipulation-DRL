@@ -19,12 +19,19 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                    help='random seed (default: 1)')
 parser.add_argument('--resume', type=int, default=0, metavar='R',
                     help='if resume from previous model (default: No)')
-parser.add_argument('--lstm', type=int, default=0, metavar='L',
+parser.add_argument('--lstm', action='store_true', default=False,
                     help='if use LSTM (default: No)')
-parser.add_argument('--moveit', type=int, default=0, metavar='M',
+parser.add_argument('--moveit', action='store_true', default=False,
                     help='if use moveit (default: No)')
+parser.add_argument('--step', type=int, default=10,
+                    help='Baxter actions step for one episode (default: 10)')
 parser.add_argument('--algo', default="a2c",
                     help='algorithm to use: a2c | ppo')
+parser.add_argument('--tau', type=float, default=1.0,
+                    help='gae parameter (default: 1.0)')
+parser.add_argument('--gamma', type=float, default=0.99,
+                        help='discount factor for rewards (default: 0.99)')
+
 
 if __name__ == '__main__':
     args = parser.parse_args(rospy.myargv()[1:])
@@ -33,7 +40,6 @@ if __name__ == '__main__':
     resume = args.resume  # whether load previous model, default 0
     use_lstm = args.lstm    # whether use LSTM structure, default false
     use_moveit = args.moveit  # whether use moveit to execute action, default false
-
     use_cuda = True
 
     # Initilize ros environment, baxter agent
@@ -48,9 +54,9 @@ if __name__ == '__main__':
 
     # Initialize learning agent
     if args.algo == "a2c":
-        agent = algo.A2Cagent(actor_critic, lr = 1e-4)
+        agent = algo.A2Cagent(actor_critic, lr=1e-4, tau=args.tau, gamma=args.gamma)
     elif args.algo == "ppo":
-        agent = algo.PPOagent(actor_critic, lr=1e-4, ppo_epoch=1, clip_param=0.1)
+        agent = algo.PPOagent(actor_critic, lr=1e-4, ppo_epoch=1, clip_param=0.1, tau=args.tau, gamma=args.gamma)
     rollouts = Rollouts()
     buffer = Buffer()
 
@@ -101,7 +107,7 @@ if __name__ == '__main__':
         # store the hxcx before the 1st step
         rollouts.memory.append(copy.deepcopy((agent.actor_critic.hx, agent.actor_critic.cx)))
 
-        for step in range(1, 5):
+        for step in range(1, args.step+1):
             print "episode: %d, step:%d" % (episode_num, step)
             state = env.getstate()
             with torch.no_grad():
@@ -152,7 +158,7 @@ if __name__ == '__main__':
         for item in rollouts.values:
             values.append(item.cpu().detach().numpy())
         value_mean = np.asarray(values).mean()
-        record = [reward_mean, value_mean, w, loss.cpu().detach().numpy]
+        record = [reward_mean, value_mean, w, loss.cpu().detach().numpy().squeeze()]
         print("record:", record)
         Record.append(copy.deepcopy(record))
         if episode_num % 100 == 0:

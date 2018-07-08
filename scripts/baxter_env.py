@@ -160,7 +160,6 @@ class Baxter(object):
             self.target_line_start = self.target_line_start + self.target_pos_start
             self.target_line = self.target_line_start
             print "load gazebo model"
-            IPython.embed()
             resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
                                    Pose(position=Point(x=self.target_pos_start[0], y=self.target_pos_start[1], z=0)), type="urdf")
 
