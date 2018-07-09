@@ -252,8 +252,21 @@ class Baxter(object):
 
     def getstate(self):
 
+        rospy.wait_for_service('/gazebo/get_link_state')
+        torso_pose = self.get_link_state("hugging_target::Torso_link", "world").link_state.pose
+        T = tf.transformations.quaternion_matrix([torso_pose.orientation.x,
+                                                  torso_pose.orientation.y,
+                                                  torso_pose.orientation.z,
+                                                  torso_pose.orientation.w])
+        # rotation in /world frame, which is [0, 0, -0.93] to /base frame
+        # target_line_start-target_pos_start is the original position of human in /world frame
+        self.target_line = np.dot(T[:3, :3], (self.target_line_start - self.target_pos_start).T).T + \
+                           [torso_pose.position.x, torso_pose.position.y, torso_pose.position.z] + \
+                           [0, 0, -0.93]
+
         right_limb_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
-        left_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
+        left_limb_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
+        limb_pose = right_limb_pose[5:]
         right_joint = [right_joint_pos[0], right_joint_pos[1], right_joint_pos[2], right_joint_pos[3], right_joint_pos[4], right_joint_pos[5], right_joint_pos[6]]
 
         # right limb joint positions
@@ -271,13 +284,13 @@ class Baxter(object):
         # ####################### writhe matrix ###########################
         writhe = np.empty((len(self.target_line)-2, 7))
         for idx in range(10):
-            for idx_robot in range(5, 12):
-                writhe[idx, idx_robot-5] = GLI(self.target_line[idx], self.target_line[idx+1],
-                                               right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
+            for idx_robot in range(len(limb_pose)-1):
+                writhe[idx, idx_robot] = GLI(self.target_line[idx], self.target_line[idx+1],
+                                               limb_pose[idx_robot], limb_pose[idx_robot+1])[0]
         for idx in range(11, 21):
-            for idx_robot in range(5, 12):
-                writhe[idx-1, idx_robot-5] = GLI(self.target_line[idx], self.target_line[idx+1],
-                                               right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
+            for idx_robot in range(len(limb_pose)-1):
+                writhe[idx-1, idx_robot] = GLI(self.target_line[idx], self.target_line[idx+1],
+                                               limb_pose[idx_robot], limb_pose[idx_robot+1])[0]
         state4 = writhe.flatten()
         # state4 = np.asarray([GLI(self.cylinder1, self.cylinder2, right_pose[5], right_pose[6])[0],
         #                  GLI(self.cylinder1, self.cylinder2, right_pose[6], right_pose[7])[0],
@@ -288,22 +301,30 @@ class Baxter(object):
         #                  GLI(self.cylinder1, self.cylinder2, right_pose[11], right_pose[12])[0]]).flatten()
 
         # ############################### interaction mesh ##################################
-        graph_points = np.concatenate((right_limb_pose[5:], self.target_line), 0)
-        InterMesh = np.empty(graph_points.shape)
-        for idx, point in enumerate(graph_points):
-            neighbor_index = find_neighbors(idx, self.triangulation)
-            W = 0
-            Lap = point
-            # calculate normalization constant
-            for nei_point in graph_points[neighbor_index]:
-                W = W + 1.0 / math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
-            # calculate Laplace coordinates
-            for nei_point in graph_points[neighbor_index]:
-                dis_nei = math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
-                Lap = Lap - nei_point / ( dis_nei * W )
-            InterMesh[idx] = Lap
-        state5 = InterMesh.flatten()
+        # graph_points = np.concatenate((right_limb_pose[5:], self.target_line), 0)
+        # InterMesh = np.empty(graph_points.shape)
+        # for idx, point in enumerate(graph_points):
+        #     neighbor_index = find_neighbors(idx, self.triangulation)
+        #     W = 0
+        #     Lap = point
+        #     # calculate normalization constant
+        #     for nei_point in graph_points[neighbor_index]:
+        #         W = W + 1.0 / math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
+        #     # calculate Laplace coordinates
+        #     for nei_point in graph_points[neighbor_index]:
+        #         dis_nei = math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
+        #         Lap = Lap - nei_point / ( dis_nei * W )
+        #     InterMesh[idx] = Lap
+        # state5 = InterMesh.flatten()
 
+        DisMesh = np.empty([limb_pose.shape[0], self.target_line.shape[0]])
+        for i in range(DisMesh.shape[0]):
+            for j in range(DisMesh.shape[1]):
+                DisMesh[i][j] = math.sqrt( (limb_pose[i][0] - self.target_line[j][0]) ** 2 +
+                                           (limb_pose[i][1] - self.target_line[j][1]) ** 2 +
+                                           (limb_pose[i][2] - self.target_line[j][2]) ** 2)
+        state5 = DisMesh.flatten()
+        
         state = [state1, state2, state3, state4, state5]
         return state
 
