@@ -324,7 +324,7 @@ class Baxter(object):
                                            (limb_pose[i][1] - self.target_line[j][1]) ** 2 +
                                            (limb_pose[i][2] - self.target_line[j][2]) ** 2)
         state5 = DisMesh.flatten()
-        
+
         state = [state1, state2, state3, state4, state5]
         return state
 

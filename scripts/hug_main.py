@@ -159,8 +159,9 @@ if __name__ == '__main__':
         for item in rollouts.values:
             values.append(item.cpu().detach().numpy())
         value_mean = np.asarray(values).mean()
-        record = [reward_mean, value_mean, w, loss.cpu().detach().numpy().squeeze()]
-        print("episode %d cost time: %fs" % (episode_num, time.time() - start_time))
+        time_epi = time.time() - start_time
+        record = [reward_mean, value_mean, w, loss.cpu().detach().numpy().squeeze(), time_epi]
+        print("episode %d cost time: %fs" % (episode_num, time_epi))
         print("record:", record)
         Record.append(copy.deepcopy(record))
 
