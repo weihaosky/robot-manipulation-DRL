@@ -91,6 +91,7 @@ if __name__ == '__main__':
 
     while not rospy.is_shutdown() and episode_num <= 2000:
 
+        start_time = time.time()    # timing for one episode
         episode_num += 1
         env.reset()
         done = False
@@ -159,14 +160,17 @@ if __name__ == '__main__':
             values.append(item.cpu().detach().numpy())
         value_mean = np.asarray(values).mean()
         record = [reward_mean, value_mean, w, loss.cpu().detach().numpy().squeeze()]
+        print("episode %d cost time: %fs" % (episode_num, time.time() - start_time))
         print("record:", record)
         Record.append(copy.deepcopy(record))
+
+        rollouts.clear()
+
         if episode_num % 100 == 0:
             file_save = open(record_path + 'Record.pkl', 'wb')
             pickle.dump(Record, file_save)
             file_save.close()
 
-        rollouts.clear()
 
         if episode_num % 200 == 0:
             print "saving model..."
