@@ -355,9 +355,9 @@ class Baxter(object):
             for i, joint in enumerate(self.right_limb_interface.joint_names()):
                 cmd[joint] = action[i]
             # ########## delta Joint position control ###############
-            cur_type_values = self.right_limb_interface.joint_angles()
-            for i, joint in enumerate(self.right_limb_interface.joint_names()):
-                cmd[joint] = cmd[joint] + cur_type_values[joint]
+            # cur_type_values = self.right_limb_interface.joint_angles()
+            # for i, joint in enumerate(self.right_limb_interface.joint_names()):
+            #     cmd[joint] = cmd[joint] + cur_type_values[joint]
             try:
                 # self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
                 self.right_limb_interface.set_joint_velocities(cmd)
