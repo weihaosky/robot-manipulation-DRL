@@ -359,7 +359,8 @@ class Baxter(object):
             for i, joint in enumerate(self.right_limb_interface.joint_names()):
                 cmd[joint] = cmd[joint] + cur_type_values[joint]
             try:
-                self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
+                # self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
+                self.right_limb_interface.set_joint_velocities(cmd)
             except Exception, e:
                 rospy.logerr('Error: %s', str(e))
         else:

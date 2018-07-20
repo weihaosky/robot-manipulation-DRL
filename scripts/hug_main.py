@@ -113,8 +113,8 @@ if __name__ == '__main__':
         for step in range(1, args.step+1):
             print "episode: %d, step:%d" % (episode_num, step)
             state, writhe, InterMesh = env.getstate()
-            # IPython.embed()
-            fig = plt.figure()
+
+            fig = plt.figure(0)
             ax = fig.add_subplot(121)
             sns.heatmap(writhe, vmax=0.02, vmin=-0.02, cmap=plt.cm.hot)
             # plt.colorbar(ax.imshow(writhe, cmap=matplotlib.cm.hot), norm=matplotlib.colors.Normalize(vmin=-1, vmax=1), ticks=[-1, 0, 1])
@@ -123,6 +123,7 @@ if __name__ == '__main__':
             sns.heatmap(InterMesh, vmax=0.5, vmin=-0.5, cmap=plt.cm.hot)
             # plt.colorbar()
             plt.savefig("state_heat.png")
+            plt.clf()
 
             with torch.no_grad():
                 value, action, action_log_prob, action_entropy = \
