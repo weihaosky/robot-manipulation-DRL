@@ -12,6 +12,8 @@ import copy
 
 import pickle
 import argparse
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 parser = argparse.ArgumentParser(description='A2C')
@@ -45,7 +47,7 @@ if __name__ == '__main__':
     # Initilize ros environment, baxter agent
     rospy.init_node('baxter_hug')
     env = Baxter(use_moveit)
-    state = env.getstate()
+    state, _, _ = env.getstate()
 
     # Initialize a2c network
     actor_critic = ACNet(state, use_cuda, use_lstm)
@@ -110,7 +112,18 @@ if __name__ == '__main__':
 
         for step in range(1, args.step+1):
             print "episode: %d, step:%d" % (episode_num, step)
-            state = env.getstate()
+            state, writhe, InterMesh = env.getstate()
+            # IPython.embed()
+            fig = plt.figure()
+            ax = fig.add_subplot(121)
+            sns.heatmap(writhe, vmax=0.02, vmin=-0.02, cmap=plt.cm.hot)
+            # plt.colorbar(ax.imshow(writhe, cmap=matplotlib.cm.hot), norm=matplotlib.colors.Normalize(vmin=-1, vmax=1), ticks=[-1, 0, 1])
+            ax = fig.add_subplot(122)
+            # plt.colorbar(ax.imshow(InterMesh, cmap=matplotlib.cm.hot))
+            sns.heatmap(InterMesh, vmax=0.5, vmin=-0.5, cmap=plt.cm.hot)
+            # plt.colorbar()
+            plt.savefig("state_heat.png")
+
             with torch.no_grad():
                 value, action, action_log_prob, action_entropy = \
                     agent.actor_critic.act(state)
@@ -139,7 +152,7 @@ if __name__ == '__main__':
         value_terminal = torch.zeros(1, 1)
         if use_cuda:
             value_terminal = value_terminal.cuda()
-        state = env.getstate()
+        state, _, _ = env.getstate()
         if not done:
             with torch.no_grad():
                 value_terminal = agent.actor_critic.getvalue(state)

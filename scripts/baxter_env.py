@@ -301,32 +301,49 @@ class Baxter(object):
         #                  GLI(self.cylinder1, self.cylinder2, right_pose[11], right_pose[12])[0]]).flatten()
 
         # ############################### interaction mesh ##################################
-        # graph_points = np.concatenate((right_limb_pose[5:], self.target_line), 0)
-        # InterMesh = np.empty(graph_points.shape)
-        # for idx, point in enumerate(graph_points):
-        #     neighbor_index = find_neighbors(idx, self.triangulation)
-        #     W = 0
-        #     Lap = point
-        #     # calculate normalization constant
-        #     for nei_point in graph_points[neighbor_index]:
-        #         W = W + 1.0 / math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
-        #     # calculate Laplace coordinates
-        #     for nei_point in graph_points[neighbor_index]:
-        #         dis_nei = math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
-        #         Lap = Lap - nei_point / ( dis_nei * W )
-        #     InterMesh[idx] = Lap
-        # state5 = InterMesh.flatten()
+        graph_points = np.concatenate((right_limb_pose[5:], self.target_line), 0)
+        InterMesh = np.empty(graph_points.shape)
+        for idx, point in enumerate(graph_points):
+            neighbor_index = find_neighbors(idx, self.triangulation)
+            W = 0
+            Lap = point
+            # calculate normalization constant
+            for nei_point in graph_points[neighbor_index]:
+                W = W + 1.0 / math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
+            # calculate Laplace coordinates
+            for nei_point in graph_points[neighbor_index]:
+                dis_nei = math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
+                Lap = Lap - nei_point / ( dis_nei * W )
+            InterMesh[idx] = Lap
+        state5 = InterMesh.flatten()
 
-        DisMesh = np.empty([limb_pose.shape[0], self.target_line.shape[0]])
-        for i in range(DisMesh.shape[0]):
-            for j in range(DisMesh.shape[1]):
-                DisMesh[i][j] = math.sqrt( (limb_pose[i][0] - self.target_line[j][0]) ** 2 +
-                                           (limb_pose[i][1] - self.target_line[j][1]) ** 2 +
-                                           (limb_pose[i][2] - self.target_line[j][2]) ** 2)
-        state5 = DisMesh.flatten()
+        # DisMesh = np.empty([limb_pose.shape[0], self.target_line.shape[0]])
+        # for i in range(DisMesh.shape[0]):
+        #     for j in range(DisMesh.shape[1]):
+        #         DisMesh[i][j] = math.sqrt( (limb_pose[i][0] - self.target_line[j][0]) ** 2 +
+        #                                    (limb_pose[i][1] - self.target_line[j][1]) ** 2 +
+        #                                    (limb_pose[i][2] - self.target_line[j][2]) ** 2)
+        # state5 = DisMesh.flatten()
+        #
+        # DisMesh = np.empty(limb_pose.shape)
+        # for i in range(DisMesh.shape[0]):
+        #     W = 0
+        #     Lap = limb_pose[i]
+        #     # calculate normalization constant
+        #     for target_point in self.target_line:
+        #         W = W + 1.0 / math.sqrt((limb_pose[i][0] - target_point[0])**2 +
+        #                                 (limb_pose[i][1] - target_point[1])**2 +
+        #                                 (limb_pose[i][2] - target_point[2])**2)
+        #     for target_point in self.target_line:
+        #         dis = math.sqrt((limb_pose[i][0] - target_point[0])**2 +
+        #                         (limb_pose[i][1] - target_point[1])**2 +
+        #                         (limb_pose[i][2] - target_point[2])**2)
+        #         Lap = Lap - target_point / (dis * W)
+        #     DisMesh[i] = Lap
+        # state5 = DisMesh.flatten()
 
         state = [state1, state2, state3, state4, state5]
-        return state
+        return state, writhe, InterMesh
 
     def act(self, action):
 
