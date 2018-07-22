@@ -88,8 +88,15 @@ if __name__ == '__main__':
         # target_net.load_state_dict(torch.load(model_path + "model_t-5000.pt"))
         episode_num = resume
         # OBSERVE = 5100
+        file_load = open(record_path + 'triangulation.pkl', 'rb')
+        tri_load = pickle.load(file_load)
+        file_load.close()
+        env.triangulation = tri_load
     else:
         episode_num = 0
+        file_save = open(record_path + 'triangulation.pkl', 'wb')
+        pickle.dump(env.triangulation, file_save)
+        file_save.close()
 
     while not rospy.is_shutdown() and episode_num <= 2000:
 
@@ -187,7 +194,7 @@ if __name__ == '__main__':
             file_save.close()
 
 
-        if episode_num % 200 == 0:
+        if episode_num % 100 == 0:
             print "saving model..."
             torch.save(agent.actor_critic.network.state_dict(), model_path + 'model-' + str(episode_num) + '.pt')
             # torch.save(target_net.state_dict(), model_path + 'model_t-' + str(episode_num) + '.pt')
