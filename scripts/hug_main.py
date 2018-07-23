@@ -102,7 +102,7 @@ if __name__ == '__main__':
 
         start_time = time.time()    # timing for one episode
         episode_num += 1
-        env.reset()
+        env.reset(episode_num)
         done = False
         if use_lstm:
             agent.actor_critic.cx = Variable(torch.zeros(1, agent.actor_critic.lstm_size))

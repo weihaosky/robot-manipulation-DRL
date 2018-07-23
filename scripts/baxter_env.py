@@ -14,7 +14,8 @@ from baxter_kdl.kdl_parser import kdl_tree_from_urdf_model
 from urdf_parser_py.urdf import URDF
 import moveit_commander
 import geometry_msgs.msg
-from gazebo_msgs.srv import SpawnModel, DeleteModel, GetModelState, GetLinkState
+from gazebo_msgs.srv import SpawnModel, DeleteModel, GetModelState, GetLinkState, SetModelState
+from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import String
 import tf
@@ -106,13 +107,24 @@ class Baxter(object):
         # self.collision_getter = InfoGetter()
         # self.collision_topic = "/hug_collision"
 
-    def reset(self):
+    def reset(self, episode_num):
         print "Resetting Baxter..."
         # limb = 'right'
         # limb_interface = baxter_interface.Limb(limb)
-        self.delete_model("hugging_target")
-        rospy.sleep(0.1)
+        if episode_num % 10 == 0 or episode_num == 1:
+            self.delete_model("hugging_target")
+            rospy.sleep(0.1)
+        else:
+            model_msg = ModelState()
+            model_msg.model_name = "hugging_target"
+            model_msg.reference_frame = "world"
+            model_msg.pose.position.x = 2.0
+            model_msg.pose.position.y = 0.0
+            model_msg.pose.position.z = 0
+            set_model_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
+            resp_set = set_model_state(model_msg)
 
+        # reset arm position
         if not self.use_moveit:
             # Joint position control
             # self.right_limb_interface.move_to_neutral(timeout=10.0)
@@ -160,10 +172,19 @@ class Baxter(object):
             self.target_line_start = self.target_line_start + self.target_pos_start
             self.target_line = self.target_line_start
             print "load gazebo model"
-            resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
+            if episode_num % 10 == 0 or episode_num == 1:
+                resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
                                    Pose(position=Point(x=self.target_pos_start[0], y=self.target_pos_start[1], z=0)), type="urdf")
-
-        rospy.sleep(0.1)
+                rospy.sleep(0.1)
+            else:
+                model_msg = ModelState()
+                model_msg.model_name = "hugging_target"
+                model_msg.reference_frame = "world"
+                model_msg.pose.position.x = self.target_pos_start[0]
+                model_msg.pose.position.y = self.target_pos_start[1]
+                model_msg.pose.position.z = 0
+                set_model_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
+                resp_set = set_model_state(model_msg)
         # print("target line start: ", self.target_line_start)
         # Listen to collision information
         # rospy.Subscriber(self.collision_topic, String, self.collision_getter)
@@ -263,7 +284,7 @@ class Baxter(object):
         self.target_line = np.dot(T[:3, :3], (self.target_line_start - self.target_pos_start).T).T + \
                            [torso_pose.position.x, torso_pose.position.y, torso_pose.position.z] + \
                            [0, 0, -0.93]
-
+        print(self.target_line)
         right_limb_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_limb_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
         limb_pose = right_limb_pose[5:]
