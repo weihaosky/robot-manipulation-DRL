@@ -68,7 +68,7 @@ class PPOagent(object):
                     delta_t = rewards_batch[i] + self.gamma * values[i + 1] - values[i]     # values or old value batchs?
                     gae = gae * self.gamma * self.tau + delta_t
                     ratio = torch.exp(action_log_probs[i] - old_action_log_probs_batch[i])
-                    print("ratio:", ratio)
+                    # print("ratio:", ratio)
                     surr1 = ratio * gae
                     surr2 = torch.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param) * gae
 

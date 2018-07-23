@@ -98,11 +98,12 @@ if __name__ == '__main__':
         pickle.dump(env.triangulation, file_save)
         file_save.close()
 
+    collision = 0
     while not rospy.is_shutdown() and episode_num <= 2000:
 
         start_time = time.time()    # timing for one episode
         episode_num += 1
-        env.reset(episode_num)
+        env.reset(episode_num, collision)
         done = False
         if use_lstm:
             agent.actor_critic.cx = Variable(torch.zeros(1, agent.actor_critic.lstm_size))

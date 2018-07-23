@@ -144,7 +144,7 @@ class ACNet(nn.Module):
         hx = [hxcx[0] for hxcx in memory]
         cx = [hxcx[1] for hxcx in memory]
         len_batch = len(action)
-        print("len_batch:", len_batch)
+        # print("len_batch:", len_batch)
         value = [None] * (len_batch + 1)
         action_mu = [None] * len_batch
         action_sigma = [None] * len_batch

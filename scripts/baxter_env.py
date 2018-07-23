@@ -108,11 +108,11 @@ class Baxter(object):
         # self.collision_getter = InfoGetter()
         # self.collision_topic = "/hug_collision"
 
-    def reset(self, episode_num):
+    def reset(self, episode_num, collision):
         print "Resetting Baxter..."
         # limb = 'right'
         # limb_interface = baxter_interface.Limb(limb)
-        if episode_num % 10 == 0 or episode_num == 1:
+        if episode_num % 10 == 0 or episode_num == 1 or collision != 0:
             self.delete_model("hugging_target")
             rospy.sleep(0.1)
         else:
@@ -172,7 +172,7 @@ class Baxter(object):
             self.target_line_start = self.target_line_start + self.target_pos_start
             self.target_line = self.target_line_start
             print "load gazebo model"
-            if episode_num % 10 == 0 or episode_num == 1:
+            if episode_num % 10 == 0 or episode_num == 1 or collision != 0:
                 resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
                                    Pose(position=Point(x=self.target_pos_start[0], y=self.target_pos_start[1], z=0)), type="urdf")
                 rospy.sleep(0.1)
@@ -254,6 +254,8 @@ class Baxter(object):
         current_pos = state.pose.position
         target_move = math.hypot((current_pos.x - self.target_pos_start[0]),
                              (current_pos.y - self.target_pos_start[1]))
+        print("state_pose:", current_pos)
+        print("target_move:" , target_move)
         if target_move > 0.1:
             collision = 1   # collision
             # reward = 0.0
