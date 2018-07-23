@@ -37,6 +37,7 @@ class Baxter(object):
 
         self.get_link_state = rospy.ServiceProxy("/gazebo/get_link_state", GetLinkState)
         self.get_model_state = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
+        self.set_model_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
 
         # Verify robot is enabled
         print("Getting robot state... ")
@@ -121,8 +122,7 @@ class Baxter(object):
             model_msg.pose.position.x = 2.0
             model_msg.pose.position.y = 0.0
             model_msg.pose.position.z = 0
-            set_model_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
-            resp_set = set_model_state(model_msg)
+            resp_set = self.set_model_state(model_msg)
 
         # reset arm position
         if not self.use_moveit:
@@ -183,8 +183,7 @@ class Baxter(object):
                 model_msg.pose.position.x = self.target_pos_start[0]
                 model_msg.pose.position.y = self.target_pos_start[1]
                 model_msg.pose.position.z = 0
-                set_model_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
-                resp_set = set_model_state(model_msg)
+                resp_set = self.set_model_state(model_msg)
         # print("target line start: ", self.target_line_start)
         # Listen to collision information
         # rospy.Subscriber(self.collision_topic, String, self.collision_getter)
