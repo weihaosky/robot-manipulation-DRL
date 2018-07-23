@@ -246,12 +246,7 @@ class Baxter(object):
 
         # Detect collision
         collision = 0
-        rospy.wait_for_service("/gazebo/get_model_state")
-        try:
-            state = self.get_model_state(model_name="hugging_target")
-        except Exception, e:
-            rospy.logerr('Error on calling service: %s', str(e))
-        current_pos = state.pose.position
+        current_pos = torso_pose.position
         target_move = math.hypot((current_pos.x - self.target_pos_start[0]),
                              (current_pos.y - self.target_pos_start[1]))
         print("state_pose:", current_pos)
