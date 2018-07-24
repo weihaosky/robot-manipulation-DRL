@@ -8,13 +8,13 @@ import random
 from scipy.spatial import Delaunay
 
 import rospy
-import rospkg
+import rospkg, roslaunch
 import baxter_interface
 from baxter_kdl.kdl_parser import kdl_tree_from_urdf_model
 from urdf_parser_py.urdf import URDF
 import moveit_commander
 import geometry_msgs.msg
-from gazebo_msgs.srv import SpawnModel, DeleteModel, GetModelState, GetLinkState, SetModelState
+from gazebo_msgs.srv import SpawnModel, DeleteModel, GetModelState, GetLinkState, SetModelState, SetModelConfiguration
 from gazebo_msgs.msg import ModelState
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import String
@@ -38,6 +38,7 @@ class Baxter(object):
         self.get_link_state = rospy.ServiceProxy("/gazebo/get_link_state", GetLinkState)
         self.get_model_state = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
         self.set_model_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
+        self.set_model_config = rospy.ServiceProxy('/gazebo/set_model_configuration', SetModelConfiguration)
 
         # Verify robot is enabled
         print("Getting robot state... ")
@@ -112,17 +113,21 @@ class Baxter(object):
         print "Resetting Baxter..."
         # limb = 'right'
         # limb_interface = baxter_interface.Limb(limb)
-        if episode_num % 10 == 0 or episode_num == 1 or collision != 0:
-            self.delete_model("hugging_target")
-            rospy.sleep(0.1)
-        else:
-            model_msg = ModelState()
-            model_msg.model_name = "hugging_target"
-            model_msg.reference_frame = "world"
-            model_msg.pose.position.x = 2.0
-            model_msg.pose.position.y = 0.0
-            model_msg.pose.position.z = 0
-            resp_set = self.set_model_state(model_msg)
+        # if episode_num % 10 == 0 or episode_num == 1 or collision != 0:
+        # if episode_num == 1:
+        #     self.delete_model("hugging_target")
+        #     rospy.sleep(0.1)
+        # else:
+        model_msg = ModelState()
+        model_msg.model_name = "humanoid"
+        model_msg.reference_frame = "world"
+        model_msg.pose.position.x = 2.0
+        model_msg.pose.position.y = 0.0
+        model_msg.pose.position.z = 0
+        # self.set_model_config('hugging_target', 'humanoids',
+        #                       ['LeftLeg_joint', 'RightLeg_joint', 'RightUpperArm_joint', 'Head_joint'],
+        #                       [0.0, 0.0, 0.0, 0.0])
+        resp_set = self.set_model_state(model_msg)
 
         # reset arm position
         if not self.use_moveit:
@@ -172,18 +177,26 @@ class Baxter(object):
             self.target_line_start = self.target_line_start + self.target_pos_start
             self.target_line = self.target_line_start
             print "load gazebo model"
-            if episode_num % 10 == 0 or episode_num == 1 or collision != 0:
-                resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
-                                   Pose(position=Point(x=self.target_pos_start[0], y=self.target_pos_start[1], z=0)), type="urdf")
-                rospy.sleep(0.1)
-            else:
-                model_msg = ModelState()
-                model_msg.model_name = "hugging_target"
-                model_msg.reference_frame = "world"
-                model_msg.pose.position.x = self.target_pos_start[0]
-                model_msg.pose.position.y = self.target_pos_start[1]
-                model_msg.pose.position.z = 0
-                resp_set = self.set_model_state(model_msg)
+
+            # uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+            # roslaunch.configure_logging(uuid)
+            # launch = roslaunch.parent.ROSLaunchParent(uuid, ["/home/will/catkin_ws/src/baxter_hug/gazebo_models/humanoid/humanoid.launch"])
+            # launch.start()
+            # launch.shutdown()
+
+            # if episode_num % 10 == 0 or episode_num == 1 or collision != 0:
+            # if episode_num == 1:
+            #     resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
+            #                        Pose(position=Point(x=self.target_pos_start[0], y=self.target_pos_start[1], z=0)), type="urdf")
+            #     rospy.sleep(0.1)
+            # else:
+            model_msg = ModelState()
+            model_msg.model_name = "humanoid"
+            model_msg.reference_frame = "world"
+            model_msg.pose.position.x = self.target_pos_start[0]
+            model_msg.pose.position.y = self.target_pos_start[1]
+            model_msg.pose.position.z = 0
+            resp_set = self.set_model_state(model_msg)
         # print("target line start: ", self.target_line_start)
         # Listen to collision information
         # rospy.Subscriber(self.collision_topic, String, self.collision_getter)
@@ -215,7 +228,7 @@ class Baxter(object):
 
 
         rospy.wait_for_service('/gazebo/get_link_state')
-        torso_pose = self.get_link_state("hugging_target::Torso_link", "world").link_state.pose
+        torso_pose = self.get_link_state("humanoid::Torso_link", "world").link_state.pose
         T = tf.transformations.quaternion_matrix([torso_pose.orientation.x,
                                               torso_pose.orientation.y,
                                               torso_pose.orientation.z,
@@ -270,7 +283,7 @@ class Baxter(object):
     def getstate(self):
 
         rospy.wait_for_service('/gazebo/get_link_state')
-        torso_pose = self.get_link_state("hugging_target::Torso_link", "world").link_state.pose
+        torso_pose = self.get_link_state("humanoid::Torso_link", "world").link_state.pose
         T = tf.transformations.quaternion_matrix([torso_pose.orientation.x,
                                                   torso_pose.orientation.y,
                                                   torso_pose.orientation.z,

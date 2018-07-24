@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+<group ns="humanoid">
+    <param name="robot_description" textfile="$(find baxter_hug)/gazebo_models/humanoid/humanoid.urdf" />
+    <node name="urdf_spawner_humanoid" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" 
+        args="-urdf -model humanoid -param robot_description -x 1"/>
+
+    <!-- loads the controllers -->
+    <rosparam file="$(find baxter_hug)/gazebo_models/humanoid/config.yaml" command="load" />
+    <node name="controller_spawner_humanoid" pkg="controller_manager" type="spawner"
+        respawn="false" output="screen" 
+        args="leftleg_joint_position_controller joint_state_controller --shutdown-timeout 3"/> 
+
+    <!-- converts joint states to TF transforms -->
+    <node name="robot_state_publisher_humanoid" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen">
+        <remap from="/joint_states" to="/humanoid/joint_states" />
+    </node>
+
+</group>
+</launch>

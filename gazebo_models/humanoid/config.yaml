@@ -1,0 +1,13 @@
+    joint_state_controller:
+        type: joint_state_controller/JointStateController
+        publish_rate: 20
+
+    # rightleg_joint_position_controller:
+    #     type: velocity_controllers/JointPositionController
+    #     joint: RightLeg_joint
+    #     pid: {p: 1.0, i: 0.5, d: 0.1}
+
+    leftleg_joint_position_controller:
+        type: velocity_controllers/JointPositionController
+        joint: LeftLeg_joint
+        pid: {p: 1.0, i: 0.1, d: 0.1}

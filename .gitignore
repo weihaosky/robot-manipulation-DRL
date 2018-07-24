@@ -9,3 +9,4 @@ delaunay_triangulation.py
 .vscode*
 state_heat*
 *pkl
+simple_model*

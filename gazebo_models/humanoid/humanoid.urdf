@@ -3,8 +3,8 @@
 
   <link name="Torso_link">
     <inertial>
-        <mass value="1" />
-        <inertia ixx="0.0375" ixy="0.0" ixz="0.0" iyy="0.031875" iyz="0.0" izz="0.009375"/>
+        <mass value="10" />
+        <inertia ixx="0.375" ixy="0.0" ixz="0.0" iyy="0.31875" iyz="0.0" izz="0.09375"/>
     </inertial>
     <collision>
     <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 1.1" />
@@ -61,8 +61,8 @@
 
   <link name="LeftFoot_link">
     <inertial>
-        <mass value="50" />
-        <inertia ixx="0.1354" ixy="0.0" ixz="0.0" iyy="0.4167" iyz="0.0" izz="0.46875"/>
+        <mass value="100" />
+        <inertia ixx="0.2708" ixy="0.0" ixz="0.0" iyy="0.8334" iyz="0.0" izz="0.9375"/>
     </inertial>
     <collision>
     <origin rpy="0.0 0.0 0.0" xyz="0.1 0.0 -0.05"/>
@@ -99,8 +99,8 @@
 
   <link name="RightFoot_link">
     <inertial>
-        <mass value="50" />
-        <inertia ixx="0.1354" ixy="0.0" ixz="0.0" iyy="0.4167" iyz="0.0" izz="0.46875"/>
+        <mass value="100" />
+        <inertia ixx="0.2708" ixy="0.0" ixz="0.0" iyy="0.8334" iyz="0.0" izz="0.9375"/>
     </inertial>
     <collision>
     <origin rpy="0.0 0.0 0.0" xyz="0.1 0.0 -0.05"/>
@@ -201,20 +201,23 @@
 
 
 
-  <joint name="LeftLeg_joint" type="revolute">
+  <joint name="LeftLeg_joint" type="prismatic">
   <origin xyz="0.0 0.1 0.8" rpy="0.0 0.0 0.0"/> 
     <parent link="Torso_link"/>
     <child link="LeftLeg_link"/>
-    <axis xyz="1 0 0"/>
-    <limit effort="30" velocity="1.0" lower="-0.5" upper="0.5" />
+    <axis xyz="0 0 1"/>
+    <limit effort="30000" velocity="100.0" lower="-0.3" upper="0.3" />
+    <dnamics damping="0.0" friction="0.0" />
   </joint>
 
-  <joint name="RightLeg_joint" type="revolute">
+  <joint name="RightLeg_joint" type="prismatic">
   <origin xyz="0.0 -0.1 0.8" rpy="0.0 0.0 0.0"/> 
     <parent link="Torso_link"/>
     <child link="RightLeg_link"/>
-    <axis xyz="1 0 0"/>
-    <limit effort="30" velocity="1.0" lower="-0.5" upper="0.5" />
+    <axis xyz="0 0 1"/>
+    <limit effort="30000" velocity="100.0" lower="-0.3" upper="0.3" />
+    <dnamics damping="0.0" friction="0.0" />
+    <mimic joint="LeftLeg_joint" multiplier="1" offset="0"/>
   </joint>
 
   <joint name="LeftUpperArm_joint" type="revolute">
@@ -223,6 +226,7 @@
     <child link="LeftUpperArm_link"/>
     <axis xyz="1 0 0"/>
     <limit effort="30" velocity="1.0" lower="-0.0" upper="0.0" />
+    <dynamics damping="10.0" friction="0.0"/>
   </joint>
 
   <joint name="LeftForeArm_joint" type="revolute">
@@ -239,6 +243,7 @@
     <child link="RightUpperArm_link"/>
     <axis xyz="1 0 0"/>
     <limit effort="30" velocity="1.0" lower="-0.0" upper="0.0" />
+    <dynamics damping="10.0" friction="0.0"/>
   </joint>
 
   <joint name="RightForeArm_joint" type="revolute" >
@@ -269,5 +274,42 @@
     <child link="RightFoot_link"/>
     <axis xyz="0 0 1"/>
   </joint>
+
+
+   <!--                GAZEBO RELATED PART                             -->
+
+  <!-- ROS Control plugin for Gazebo -->
+  <gazebo>
+    <plugin name="gazebo_ros_control_humanoid" filename="libgazebo_ros_control.so">
+      <robotNamespace>/humanoid</robotNamespace>
+      <robotParam>humanoid/robot_description</robotParam>
+    </plugin>
+
+    <plugin name="gazebo_mimic_humanoid" filename="libroboticsgroup_gazebo_mimic_joint_plugin.so">
+      <joint>"RightLeg_joint"</joint>
+      <mimicJoint>"LeftLeg_joint"</mimicJoint>
+    </plugin>
+  </gazebo>
+
+
+  <!-- <transmission name="rightleg_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <actuator name="motor1">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+    <joint name="RightLeg_joint">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    </joint>
+  </transmission> -->
+
+  <transmission name="leftleg_trans">
+    <type>transmission_interface/SimpleTransmission</type>
+    <actuator name="motor2">
+      <mechanicalReduction>1</mechanicalReduction>
+    </actuator>
+    <joint name="LeftLeg_joint">
+      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    </joint>
+  </transmission>
 
 </robot>
