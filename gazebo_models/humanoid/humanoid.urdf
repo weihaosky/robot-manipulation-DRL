@@ -284,11 +284,6 @@
       <robotNamespace>/humanoid</robotNamespace>
       <robotParam>humanoid/robot_description</robotParam>
     </plugin>
-
-    <plugin name="gazebo_mimic_humanoid" filename="libroboticsgroup_gazebo_mimic_joint_plugin.so">
-      <joint>"RightLeg_joint"</joint>
-      <mimicJoint>"LeftLeg_joint"</mimicJoint>
-    </plugin>
   </gazebo>
 
 
@@ -308,7 +303,7 @@
       <mechanicalReduction>1</mechanicalReduction>
     </actuator>
     <joint name="LeftLeg_joint">
-      <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+      <hardwareInterface>VelocityJointInterface</hardwareInterface>
     </joint>
   </transmission>
 
