@@ -74,7 +74,7 @@ class Baxter(object):
             self.target_line_start = np.empty([22, 3], float)
             for i in range(11):
                 self.target_line_start[i] = self.target_pos_start + [0, -0.0, 1.8] - (asarray([0, -0.0, 1.8]) - asarray([0, -0.0, 0.5]))/10*i
-                self.target_line_start[i+11] = self.target_pos_start + [0, -0.45, 1.3] + (asarray([0, 0.45, 1.3]) - asarray([0, -0.45, 1.3]))/10*i
+                self.target_line_start[i+11] = self.target_pos_start + [0, -0.5, 1.3] + (asarray([0, 0.5, 1.3]) - asarray([0, -0.5, 1.3]))/10*i
             self.target_line = self.target_line_start
 
         # Build line point graph for interaction mesh
