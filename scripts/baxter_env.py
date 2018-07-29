@@ -197,6 +197,7 @@ class Baxter(object):
             model_msg.pose.position.y = self.target_pos_start[1]
             model_msg.pose.position.z = 0
             resp_set = self.set_model_state(model_msg)
+            rospy.sleep(0.5)
         # print("target line start: ", self.target_line_start)
         # Listen to collision information
         # rospy.Subscriber(self.collision_topic, String, self.collision_getter)
@@ -259,10 +260,10 @@ class Baxter(object):
 
         # Detect collision
         collision = 0
-        current_pos = torso_pose.position
-        target_move = math.hypot((current_pos.x - self.target_pos_start[0]),
-                             (current_pos.y - self.target_pos_start[1]))
-        print("state_pose:", current_pos)
+        current_pos = self.target_line[4]
+        target_move = math.hypot((current_pos[0] - self.target_pos_start[0]),
+                             (current_pos[1] - self.target_pos_start[1]))
+        print("state_pose:", current_pos, "#########")
         print("target_move:" , target_move)
         if target_move > 0.1:
             collision = 1   # collision
@@ -284,6 +285,7 @@ class Baxter(object):
 
         rospy.wait_for_service('/gazebo/get_link_state')
         torso_pose = self.get_link_state("humanoid::Torso_link", "world").link_state.pose
+        print("torso_pose:", torso_pose.position, "@@@@@@@@@@")
         T = tf.transformations.quaternion_matrix([torso_pose.orientation.x,
                                                   torso_pose.orientation.y,
                                                   torso_pose.orientation.z,
@@ -293,7 +295,7 @@ class Baxter(object):
         self.target_line = np.dot(T[:3, :3], (self.target_line_start - self.target_pos_start).T).T + \
                            [torso_pose.position.x, torso_pose.position.y, torso_pose.position.z] + \
                            [0, 0, -0.93]
-        print(self.target_line)
+        # print(self.target_line)
         right_limb_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_limb_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
         limb_pose = right_limb_pose[5:]
