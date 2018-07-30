@@ -119,19 +119,20 @@ if __name__ == '__main__':
         rollouts.memory.append(copy.deepcopy((agent.actor_critic.hx, agent.actor_critic.cx)))
 
         for step in range(1, args.step+1):
-            print "episode: %d, step:%d" % (episode_num, step)
+            print "----------- episode: %d, step:%d ------------" % (episode_num, step)
             state, writhe, InterMesh = env.getstate()
 
-            fig = plt.figure(0)
-            ax = fig.add_subplot(121)
-            sns.heatmap(writhe, vmax=0.02, vmin=-0.02, cmap=plt.cm.hot)
-            # plt.colorbar(ax.imshow(writhe, cmap=matplotlib.cm.hot), norm=matplotlib.colors.Normalize(vmin=-1, vmax=1), ticks=[-1, 0, 1])
-            ax = fig.add_subplot(122)
-            # plt.colorbar(ax.imshow(InterMesh, cmap=matplotlib.cm.hot))
-            sns.heatmap(InterMesh, vmax=0.5, vmin=-0.5, cmap=plt.cm.hot)
-            # plt.colorbar()
-            plt.savefig("state_heat.png")
-            plt.clf()
+            # heat_map evolution
+            # fig = plt.figure(0)
+            # ax = fig.add_subplot(121)
+            # sns.heatmap(writhe, vmax=0.02, vmin=-0.02, cmap=plt.cm.hot)
+            # # plt.colorbar(ax.imshow(writhe, cmap=matplotlib.cm.hot), norm=matplotlib.colors.Normalize(vmin=-1, vmax=1), ticks=[-1, 0, 1])
+            # ax = fig.add_subplot(122)
+            # # plt.colorbar(ax.imshow(InterMesh, cmap=matplotlib.cm.hot))
+            # sns.heatmap(InterMesh, vmax=0.5, vmin=-0.5, cmap=plt.cm.hot)
+            # # plt.colorbar()
+            # plt.savefig("state_heat.png")
+            # plt.clf()
 
             with torch.no_grad():
                 value, action, action_log_prob, action_entropy = \

@@ -6,6 +6,8 @@ import PyKDL
 import sys
 import random
 from scipy.spatial import Delaunay
+import multiprocessing as mp
+import threading
 
 import rospy
 import rospkg, roslaunch
@@ -39,6 +41,10 @@ class Baxter(object):
         self.get_model_state = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
         self.set_model_state = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
         self.set_model_config = rospy.ServiceProxy('/gazebo/set_model_configuration', SetModelConfiguration)
+
+        # Listen to collision information
+        # self.collision_getter = InfoGetter()
+        # self.collision_topic = "/hug_collision"
 
         # Verify robot is enabled
         print("Getting robot state... ")
@@ -78,46 +84,27 @@ class Baxter(object):
             self.target_line = self.target_line_start
 
         # Build line point graph for interaction mesh
-        if not self.use_moveit:
-            # Joint position control
-            # self.right_limb_interface.move_to_neutral(timeout=10.0)
-            cmd = dict()
-            start_point = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
-            for i, joint in enumerate(self.right_limb_interface.joint_names()):
-                cmd[joint] = start_point[i]
-            try:
-                self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
-            except Exception, e:
-                rospy.logerr('Error: %s', str(e))
-        else:
-            # Moveit joint move
-            joint_goal = self.group.get_current_joint_values()
-            joint_goal[0] = 0.0
-            joint_goal[1] = -0.55
-            joint_goal[2] = 0.0
-            joint_goal[3] = 0.75
-            joint_goal[4] = 0.0
-            joint_goal[5] = 1.26
-            joint_goal[6] = 0.0
-            self.group.go(joint_goal, wait=True)
-            self.group.stop()
+        # reset right arm
+        start_point_right = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+        t01 = threading.Thread(target=resetarm_job, args=(self.right_limb_interface, start_point_right))
+        t01.start()
+        # reset left arm
+        start_point_left = [0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+        t02 = threading.Thread(target=resetarm_job, args=(self.left_limb_interface, start_point_left))
+        t02.start()
+        t02.join()
+        t01.join()
+
         right_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
-        graph_points = np.concatenate((right_limb_pose[5:], self.target_line_start), 0)
+        left_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
+        graph_points = np.concatenate((right_limb_pose[5:], left_limb_pose[5:], self.target_line_start), 0)
         self.triangulation = Delaunay(graph_points)
 
-        # Listen to collision information
-        # self.collision_getter = InfoGetter()
-        # self.collision_topic = "/hug_collision"
 
     def reset(self, episode_num, collision):
         print "Resetting Baxter..."
-        # limb = 'right'
-        # limb_interface = baxter_interface.Limb(limb)
-        # if episode_num % 10 == 0 or episode_num == 1 or collision != 0:
-        # if episode_num == 1:
-        #     self.delete_model("hugging_target")
-        #     rospy.sleep(0.1)
-        # else:
+        # self.delete_model("hugging_target")
+        # rospy.sleep(0.1)
         model_msg = ModelState()
         model_msg.model_name = "humanoid"
         model_msg.reference_frame = "world"
@@ -131,17 +118,16 @@ class Baxter(object):
 
         # reset arm position
         if not self.use_moveit:
-            # Joint position control
-            # self.right_limb_interface.move_to_neutral(timeout=10.0)
-            cmd = dict()
-            # s0, s1, e0, e1, w0, w1, w2
-            start_point = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
-            for i, joint in enumerate(self.right_limb_interface.joint_names()):
-                cmd[joint] = start_point[i]
-            try:
-                self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
-            except Exception, e:
-                rospy.logerr('Error: %s', str(e))
+            # right arm
+            start_point_right = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+            t01 = threading.Thread(target=resetarm_job, args=(self.right_limb_interface, start_point_right))
+            t01.start()
+            # left arm
+            start_point_left = [0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+            t02 = threading.Thread(target=resetarm_job, args=(self.left_limb_interface, start_point_left))
+            t02.start()
+            t02.join()
+            t01.join()
         else:
             # Moveit joint move
             joint_goal = self.group.get_current_joint_values()
@@ -178,18 +164,9 @@ class Baxter(object):
             self.target_line = self.target_line_start
             print "load gazebo model"
 
-            # uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-            # roslaunch.configure_logging(uuid)
-            # launch = roslaunch.parent.ROSLaunchParent(uuid, ["/home/will/catkin_ws/src/baxter_hug/gazebo_models/humanoid/humanoid.launch"])
-            # launch.start()
-            # launch.shutdown()
-
-            # if episode_num % 10 == 0 or episode_num == 1 or collision != 0:
-            # if episode_num == 1:
-            #     resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
-            #                        Pose(position=Point(x=self.target_pos_start[0], y=self.target_pos_start[1], z=0)), type="urdf")
-            #     rospy.sleep(0.1)
-            # else:
+            # resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
+            #                    Pose(position=Point(x=self.target_pos_start[0], y=self.target_pos_start[1], z=0)), type="urdf")
+            # rospy.sleep(0.1)
             model_msg = ModelState()
             model_msg.model_name = "humanoid"
             model_msg.reference_frame = "world"
@@ -243,20 +220,30 @@ class Baxter(object):
         # Calculate writhe improvement
         rospy.sleep(0.01)
         right_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
-        writhe = np.empty((len(self.target_line) - 2, 7))
-        for idx in range(10):
+        left_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
+        writhe = np.empty((len(self.target_line) - 2, 14))
+        for idx_target in range(10):
             for idx_robot in range(5, 12):
-                writhe[idx, idx_robot - 5] = GLI(self.target_line[idx], self.target_line[idx + 1],
-                                                 right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
-        for idx in range(11, 21):
+                writhe[idx_target, idx_robot-5] = \
+                    100*GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
+                writhe[idx_target, idx_robot-5+7] = \
+                    100 *GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
+        for idx_target in range(11, 21):
             for idx_robot in range(5, 12):
-                writhe[idx-1, idx_robot - 5] = GLI(self.target_line[idx], self.target_line[idx + 1],
-                                                 right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
-        w1 = np.abs(writhe[0:10].flatten().sum())
-        w2 = np.abs(writhe[10:20].flatten().sum())
-        w = w1 + w2
-        # w = np.abs(writhe.flatten().sum())
-        reward = (w - w_last) * 50 - 5 + w*5
+                writhe[idx_target-1, idx_robot-5] = \
+                    100 *GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
+                writhe[idx_target-1, idx_robot-5+7] = \
+                    100 *GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
+        w_right1 = np.abs(writhe[0:10, 0:7].flatten().sum())
+        w_right2 = np.abs(writhe[0:10, 7:14].flatten().sum())
+        w_left1 = np.abs(writhe[10:20, 0:7].flatten().sum())
+        w_left2 = np.abs(writhe[10:20, 7:14].flatten().sum())
+        w = w_right1 + w_right2 + w_left1 + w_left2
+        reward = (w - w_last) * 50 - 8 + w*5
 
         # Detect collision
         collision = 0
@@ -298,9 +285,10 @@ class Baxter(object):
         # print(self.target_line)
         right_limb_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_limb_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
-        limb_pose = right_limb_pose[5:]
-        right_joint = [right_joint_pos[0], right_joint_pos[1], right_joint_pos[2], right_joint_pos[3], right_joint_pos[4], right_joint_pos[5], right_joint_pos[6]]
-
+        right_joint = [right_joint_pos[0], right_joint_pos[1], right_joint_pos[2], right_joint_pos[3],
+                       right_joint_pos[4], right_joint_pos[5], right_joint_pos[6]]
+        left_joint = [left_joint_pos[0], left_joint_pos[1], left_joint_pos[2], left_joint_pos[3],
+                       left_joint_pos[4], left_joint_pos[5], left_joint_pos[6]]
         # right limb joint positions
         state1 = np.asarray(right_joint)
 
@@ -314,15 +302,23 @@ class Baxter(object):
         state3 = self.target_line.flatten()
 
         # ####################### writhe matrix ###########################
-        writhe = np.empty((len(self.target_line)-2, 7))
-        for idx in range(10):
-            for idx_robot in range(len(limb_pose)-1):
-                writhe[idx, idx_robot] = GLI(self.target_line[idx], self.target_line[idx+1],
-                                               limb_pose[idx_robot], limb_pose[idx_robot+1])[0]
-        for idx in range(11, 21):
-            for idx_robot in range(len(limb_pose)-1):
-                writhe[idx-1, idx_robot] = GLI(self.target_line[idx], self.target_line[idx+1],
-                                               limb_pose[idx_robot], limb_pose[idx_robot+1])[0]
+        writhe = np.empty((len(self.target_line) - 2, 14))
+        for idx_target in range(10):
+            for idx_robot in range(5, 12):
+                writhe[idx_target, idx_robot-5] = \
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
+                writhe[idx_target, idx_robot-5+7] = \
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
+        for idx_target in range(11, 21):
+            for idx_robot in range(5, 12):
+                writhe[idx_target-1, idx_robot-5] = \
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
+                writhe[idx_target-1, idx_robot-5+7] = \
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
         state4 = writhe.flatten()
         # state4 = np.asarray([GLI(self.cylinder1, self.cylinder2, right_pose[5], right_pose[6])[0],
         #                  GLI(self.cylinder1, self.cylinder2, right_pose[6], right_pose[7])[0],
@@ -333,7 +329,7 @@ class Baxter(object):
         #                  GLI(self.cylinder1, self.cylinder2, right_pose[11], right_pose[12])[0]]).flatten()
 
         # ############################### interaction mesh ##################################
-        graph_points = np.concatenate((right_limb_pose[5:], self.target_line), 0)
+        graph_points = np.concatenate((right_limb_pose[5:], left_limb_pose[5:], self.target_line), 0)
         InterMesh = np.empty(graph_points.shape)
         for idx, point in enumerate(graph_points):
             neighbor_index = find_neighbors(idx, self.triangulation)
@@ -382,19 +378,17 @@ class Baxter(object):
         # ########### Joint torque control ####################
         # limb_interface.set_joint_torques(cmd)
 
+        action_right = action[0:7]
+        action_left= action[7:14]
         if not self.use_moveit:
-            cmd = dict()
-            for i, joint in enumerate(self.right_limb_interface.joint_names()):
-                cmd[joint] = action[i]
-            # ########## delta Joint position control ###############
-            cur_type_values = self.right_limb_interface.joint_angles()
-            for i, joint in enumerate(self.right_limb_interface.joint_names()):
-                cmd[joint] = cmd[joint] + cur_type_values[joint]
-            try:
-                self.right_limb_interface.move_to_joint_positions(cmd, timeout=2.0)
-                # self.right_limb_interface.set_joint_velocities(cmd)
-            except Exception, e:
-                rospy.logerr('Error: %s', str(e))
+            # right arm
+            t1 = threading.Thread(target=movearm_job, args=(self.right_limb_interface, action_right))
+            t1.start()
+            # left arm
+            t2 = threading.Thread(target=movearm_job, args=(self.left_limb_interface, action_left))
+            t2.start()
+            t2.join()
+            t1.join()
         else:
             # ########## moveit joint position move #####################
             joint_goal = self.group.get_current_joint_values()
@@ -513,6 +507,32 @@ def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
         limb_pose.append( [pos[0], pos[1], pos[2]] )
 
     return np.asarray(limb_pose), kdl_array
+
+
+def movearm_job(limb_interface, action):
+    cmd = dict()
+    for i, joint in enumerate(limb_interface.joint_names()):
+        cmd[joint] = action[i]
+    # ########## delta Joint position control ###############
+    cur_type_values = limb_interface.joint_angles()
+    for i, joint in enumerate(limb_interface.joint_names()):
+        cmd[joint] = cmd[joint] + cur_type_values[joint]
+    try:
+        limb_interface.move_to_joint_positions(cmd, timeout=2.0)
+        # limb_interface.set_joint_velocities(cmd)
+    except Exception, e:
+        rospy.logerr('Error: %s', str(e))
+
+
+def resetarm_job(limb_interface, start_point):
+    # right arm
+    cmd = dict()
+    for i, joint in enumerate(limb_interface.joint_names()):
+        cmd[joint] = start_point[i]
+    try:
+        limb_interface.move_to_joint_positions(cmd, timeout=5.0)
+    except Exception, e:
+        rospy.logerr('Error: %s', str(e))
 
 
 

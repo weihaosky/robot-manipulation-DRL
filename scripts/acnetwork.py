@@ -105,7 +105,7 @@ class ACNet(nn.Module):
         self.use_lstm = use_lstm
         self.lstm_size = 64
         self.state_shape = [len(state[0]), len(state[1]), len(state[2]), len(state[3]), len(state[4])]
-        self.action_dim = 7
+        self.action_dim = 14
         self.network = MLPBase(state_shape=self.state_shape, action_dim=self.action_dim,
                                lstm_size=self.lstm_size, use_lstm=self.use_lstm, use_cuda=self.use_cuda)
         self.cx = Variable(torch.zeros(1, self.lstm_size))
