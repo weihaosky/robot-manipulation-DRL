@@ -225,18 +225,18 @@ class Baxter(object):
         for idx_target in range(10):
             for idx_robot in range(5, 12):
                 writhe[idx_target, idx_robot-5] = \
-                    100*GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
                         right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
                 writhe[idx_target, idx_robot-5+7] = \
-                    100 *GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
                         left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
         for idx_target in range(11, 21):
             for idx_robot in range(5, 12):
                 writhe[idx_target-1, idx_robot-5] = \
-                    100 *GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
                         right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
                 writhe[idx_target-1, idx_robot-5+7] = \
-                    100 *GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
                         left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
         w_right1 = np.abs(writhe[0:10, 0:7].flatten().sum())
         w_right2 = np.abs(writhe[0:10, 7:14].flatten().sum())
