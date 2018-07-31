@@ -12,7 +12,7 @@ from collections import deque
 import copy
 import IPython
 
-from utils import init, init_normc_
+from utils import init, init_normc_, AddBias
 
 
 class MLPBase(nn.Module):
@@ -29,6 +29,7 @@ class MLPBase(nn.Module):
         self.lstm_size = lstm_size
         self.use_cuda = use_cuda
         self.use_lstm = use_lstm
+        self.stddev = 2
         # self.conv1 = nn.Conv2d(self.state_shape[0], 64, kernel_size=9, stride=1, padding = 4)
         # # self.bn1 = nn.BatchNorm2d(64)
         # self.conv2 = nn.Conv2d(64, 64, kernel_size=7, stride=1, padding = 3)
@@ -60,6 +61,8 @@ class MLPBase(nn.Module):
             self.action_head = init_(nn.Linear(512, self.action_dim))
             self.action_sigma = init_(nn.Linear(512, self.action_dim))
             self.value_head = init_(nn.Linear(512, 1))
+
+        self.logstd = AddBias(torch.zeros(action_dim))
 
     def forward(self, state, (hx, cx)):
         # x = x.float().div(255.0)
@@ -94,7 +97,17 @@ class MLPBase(nn.Module):
             x = hx
         c = self.value_head(x)
         a = F.tanh(self.action_head(x))
-        a_sigma = F.softplus(self.action_sigma(x))
+
+        if self.stddev == 1:
+            a_sigma = F.softplus(self.action_sigma(x))
+        else:
+            zeros = torch.zeros(a.size())
+            if x.is_cuda:
+                zeros = zeros.cuda()
+            action_logstd = self.logstd(zeros)
+            a_std = action_logstd.exp()
+            a_sigma = a_std
+
         return c, a, a_sigma, (hx, cx)
 
 

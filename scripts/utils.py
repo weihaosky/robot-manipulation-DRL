@@ -19,6 +19,19 @@ def init_normc_(weight, gain=1):
     weight.normal_(0, 1)
     weight *= gain / torch.sqrt(weight.pow(2).sum(1, keepdim=True))
 
+class AddBias(nn.Module):
+    def __init__(self, bias):
+        super(AddBias, self).__init__()
+        self._bias = nn.Parameter(bias.unsqueeze(1))
+
+    def forward(self, x):
+        if x.dim() == 2:
+            bias = self._bias.t().view(1, -1)
+        else:
+            bias = self._bias.t().view(1, -1, 1, 1)
+
+        return x + bias
+
 
 # calculate gussian linking integral for two lines X1--X2 and Y1--Y2
 def GLI(X1=(0.0, 0.0, 0.0), X2 = (1.0, 0.0, 1.0), Y1 = (0.0, 0.0, 1.0), Y2 = (0.0, 1.0, 1.0)):
