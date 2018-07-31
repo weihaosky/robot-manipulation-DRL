@@ -224,12 +224,24 @@ class Baxter(object):
         writhe = np.empty((len(self.target_line) - 2, 14))
         for idx_target in range(10):
             for idx_robot in range(5, 12):
-                writhe[idx_target, idx_robot-5] = \
-                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-                        right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
-                writhe[idx_target, idx_robot-5+7] = \
-                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-                        left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
+                x1_right = self.target_line[idx_target].copy()
+                x2_right = self.target_line[idx_target + 1].copy()
+                x1_right[1] -= 0.1
+                x2_right[1] -= 0.1
+                writhe[idx_target, idx_robot - 5] = GLI(x1_right, x2_right,
+                                                        right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
+                x1_left = self.target_line[idx_target].copy()
+                x2_left = self.target_line[idx_target + 1].copy()
+                x1_left[1] += 0.1
+                x2_left[1] += 0.1
+                writhe[idx_target, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
+                                                            left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
+                # writhe[idx_target, idx_robot-5] = \
+                #     GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                #         right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
+                # writhe[idx_target, idx_robot-5+7] = \
+                #     GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                #         left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
         for idx_target in range(11, 21):
             for idx_robot in range(5, 12):
                 writhe[idx_target-1, idx_robot-5] = \
@@ -252,7 +264,7 @@ class Baxter(object):
                              (current_pos[1] - self.target_pos_start[1]))
         print("state_pose:", current_pos, "#########")
         print("target_move:" , target_move)
-        if target_move > 0.1:
+        if target_move > 0.2:
             collision = 1   # collision
             # reward = 0.0
             if step <= 2:
