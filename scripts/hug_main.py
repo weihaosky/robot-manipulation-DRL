@@ -25,6 +25,8 @@ parser.add_argument('--lstm', action='store_true', default=False,
                     help='if use LSTM (default: No)')
 parser.add_argument('--moveit', action='store_true', default=False,
                     help='if use moveit (default: No)')
+parser.add_argument('--test', action='store_true', default=False,
+                    help='training or testing? (default: False)')
 parser.add_argument('--step', type=int, default=10,
                     help='Baxter actions step for one episode (default: 10)')
 parser.add_argument('--algo', default="a2c",
@@ -43,6 +45,7 @@ if __name__ == '__main__':
     use_lstm = args.lstm    # whether use LSTM structure, default false
     use_moveit = args.moveit  # whether use moveit to execute action, default false
     use_cuda = True
+    TEST = args.test
 
     # Initilize ros environment, baxter agent
     rospy.init_node('baxter_hug')
@@ -136,7 +139,7 @@ if __name__ == '__main__':
 
             with torch.no_grad():
                 value, action, action_log_prob, action_entropy = \
-                    agent.actor_critic.act(state)
+                    agent.actor_critic.act(state, TEST)
                 # print("action:", action.data)
 
             env.act(action.cpu().numpy().squeeze())
@@ -169,12 +172,15 @@ if __name__ == '__main__':
         rollouts.states.append(copy.deepcopy(state))
         rollouts.values.append(copy.deepcopy(value_terminal))
 
-
-        if args.algo == "a2c":
-            loss = agent.update(rollouts)
-        if args.algo == "ppo":
-            buffer.insert(rollouts)
-            loss = agent.update(buffer)
+        if not TEST:    # training
+            if args.algo == "a2c":
+                loss = agent.update(rollouts)
+            if args.algo == "ppo":
+                buffer.insert(rollouts)
+                loss = agent.update(buffer)
+            loss_record = loss.cpu().detach().numpy().squeeze()
+        else:
+            loss_record = 0.0
 
         # record the training information for analysis
         reward_mean = np.asarray(rollouts.rewards).mean()
@@ -183,7 +189,7 @@ if __name__ == '__main__':
             values.append(item.cpu().detach().numpy())
         value_mean = np.asarray(values).mean()
         time_epi = time.time() - start_time
-        record = [reward_mean, value_mean, w, loss.cpu().detach().numpy().squeeze(), time_epi]
+        record = [reward_mean, value_mean, w, loss_record, time_epi]
         print("episode %d cost time: %fs" % (episode_num, time_epi))
         print("record:", record)
         Record.append(copy.deepcopy(record))

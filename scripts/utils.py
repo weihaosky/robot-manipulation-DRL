@@ -6,6 +6,7 @@ import math
 import threading
 from scipy.integrate import quad, dblquad, nquad
 import scipy.signal
+import IPython
 
 
 def init(module, weight_init, bias_init, gain=1):
@@ -14,10 +15,10 @@ def init(module, weight_init, bias_init, gain=1):
     return module
 
 
-# https://github.com/openai/baselines/blob/master/baselines/common/tf_util.py#L87
 def init_normc_(weight, gain=1):
     weight.normal_(0, 1)
     weight *= gain / torch.sqrt(weight.pow(2).sum(1, keepdim=True))
+
 
 class AddBias(nn.Module):
     def __init__(self, bias):

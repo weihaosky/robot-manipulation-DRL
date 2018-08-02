@@ -29,7 +29,7 @@ class MLPBase(nn.Module):
         self.lstm_size = lstm_size
         self.use_cuda = use_cuda
         self.use_lstm = use_lstm
-        self.stddev = 2
+        self.stddev = 1
         # self.conv1 = nn.Conv2d(self.state_shape[0], 64, kernel_size=9, stride=1, padding = 4)
         # # self.bn1 = nn.BatchNorm2d(64)
         # self.conv2 = nn.Conv2d(64, 64, kernel_size=7, stride=1, padding = 3)
@@ -127,13 +127,16 @@ class ACNet(nn.Module):
             self.cx = self.cx.cuda()
             self.hx = self.hx.cuda()
 
-    def act(self, states):
+    def act(self, states, TEST):
         # states = Variable(torch.from_numpy(states))
         # if self.use_cuda:
         #     states = states.cuda()
         value, action_mu, action_sigma, (self.hx, self.cx) = self.network(states, (self.hx, self.cx))
         a_dist = Normal(action_mu, action_sigma)
-        action = a_dist.sample()
+        if not TEST:
+            action = a_dist.sample()
+        else:
+            action = action_mu
         a_log_probs = a_dist.log_prob(action)
         a_dist_entropy = a_dist.entropy()
 

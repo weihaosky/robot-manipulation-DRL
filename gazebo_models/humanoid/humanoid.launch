@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
 
+
 <group ns="humanoid">
-    <param name="robot_description" textfile="$(find baxter_hug)/gazebo_models/humanoid/humanoid.urdf" />
+    <arg name="humanoid_urdf" default="humanoid-fat"/>
+    <param name="robot_description" textfile="$(find baxter_hug)/gazebo_models/humanoid/$(arg humanoid_urdf)" />
     <node name="urdf_spawner_humanoid" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" 
         args="-urdf -model humanoid -param robot_description -x 1"/>
 
