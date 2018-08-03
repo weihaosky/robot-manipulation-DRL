@@ -137,12 +137,16 @@ if __name__ == '__main__':
             # plt.savefig("state_heat.png")
             # plt.clf()
 
+
             with torch.no_grad():
                 value, action, action_log_prob, action_entropy = \
                     agent.actor_critic.act(state, TEST)
                 # print("action:", action.data)
 
+            # time_t = time.time()
             env.act(action.cpu().numpy().squeeze())
+            # print("time for env.act: ", time.time() - time_t)
+
             reward, w, collision = env.reward_evaluation(w, step)
             print("reward:%f" % reward, "w:%f" % w)
 
