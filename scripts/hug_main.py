@@ -118,6 +118,7 @@ if __name__ == '__main__':
         # Calculate writhe before this episode
         _, w, collision = env.reward_evaluation(0, 0)
         print("Starting w:%f" % w)
+        max_w = w
         # store the hxcx before the 1st step
         rollouts.memory.append(copy.deepcopy((agent.actor_critic.hx, agent.actor_critic.cx)))
 
@@ -149,6 +150,7 @@ if __name__ == '__main__':
 
             reward, w, collision = env.reward_evaluation(w, step)
             print("reward:%f" % reward, "w:%f" % w)
+            max_w = max(max_w, w)
 
             rollouts.insert(state, action, action_log_prob, action_entropy, reward, value, (agent.actor_critic.hx, agent.actor_critic.cx))
 
@@ -193,7 +195,7 @@ if __name__ == '__main__':
             values.append(item.cpu().detach().numpy())
         value_mean = np.asarray(values).mean()
         time_epi = time.time() - start_time
-        record = [reward_mean, value_mean, w, loss_record, time_epi]
+        record = [reward_mean, value_mean, w, max_w, loss_record, time_epi]
         print("episode %d cost time: %fs" % (episode_num, time_epi))
         print("record:", record)
         Record.append(copy.deepcopy(record))

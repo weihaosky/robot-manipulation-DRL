@@ -255,7 +255,7 @@ class Baxter(object):
         w_left1 = np.abs(writhe[10:20, 0:7].flatten().sum())
         w_left2 = np.abs(writhe[10:20, 7:14].flatten().sum())
         w = w_right1 + w_right2 + w_left1 + w_left2
-        reward = (w - w_last) * 50 - 8 + w*5
+        reward = (w - w_last) * 50 - 5 + w*5
 
         # Detect collision
         collision = 0
@@ -264,11 +264,12 @@ class Baxter(object):
                              (current_pos[1] - self.target_pos_start[1]))
         # print("state_pose:", current_pos, "#########")
         print("target_move:" , target_move)
-        if target_move > 0.2:
-            collision = 1   # collision
+        if target_move > 0.4:
+            # collision = 1   # collision
+            collision = -1
             # reward = 0.0
-            if step <= 2:
-                collision = -1  # model load error
+        if target_move > 0.2 and step <= 2:
+            collision = -1  # model load error
 
         # Listen to collision information
         # msg = self.collision_getter.get_msg()
