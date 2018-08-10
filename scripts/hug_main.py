@@ -16,20 +16,20 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 
-parser = argparse.ArgumentParser(description='A2C')
+parser = argparse.ArgumentParser(description='AC')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                    help='random seed (default: 1)')
 parser.add_argument('--resume', type=int, default=0, metavar='R',
                     help='if resume from previous model (default: No)')
-parser.add_argument('--lstm', action='store_true', default=False,
-                    help='if use LSTM (default: No)')
+parser.add_argument('--lstm', action='store_true', default=True,
+                    help='if use LSTM (default: Yes)')
 parser.add_argument('--moveit', action='store_true', default=False,
                     help='if use moveit (default: No)')
 parser.add_argument('--test', action='store_true', default=False,
                     help='training or testing? (default: False)')
 parser.add_argument('--step', type=int, default=10,
                     help='Baxter actions step for one episode (default: 10)')
-parser.add_argument('--algo', default="a2c",
+parser.add_argument('--algo', default="ppo",
                     help='algorithm to use: a2c | ppo')
 parser.add_argument('--clip', type=float, default=0.1,
                     help='ppo clipping parameter (default: 0.1)')
@@ -77,6 +77,7 @@ if __name__ == '__main__':
     if not os.path.exists(record_path):
         os.makedirs(record_path)
     Record = []
+    Evaluation = []
 
     # Begin to work!
     # env.reset()
@@ -204,10 +205,55 @@ if __name__ == '__main__':
 
         rollouts.clear()
 
+        # evaluation
+        if episode_num % 10 == 0:
+            print("--------------- Evaluation: ---------------")
+            collision = 2
+            while collision != 0:
+                env.reset(episode_num, collision)
+                # Calculate writhe before this episode
+                _, w, collision = env.reward_evaluation(0, 0)
+                max_w = w
+                done = False
+                if use_lstm:
+                    agent.actor_critic.cx = Variable(torch.zeros(1, agent.actor_critic.lstm_size))
+                    agent.actor_critic.hx = Variable(torch.zeros(1, agent.actor_critic.lstm_size))
+                    if use_cuda:
+                        agent.actor_critic.cx = agent.actor_critic.cx.cuda()
+                        agent.actor_critic.hx = agent.actor_critic.hx.cuda()
+
+                for step in range(1, args.step + 1):
+                    state, writhe, InterMesh = env.getstate()
+
+                    with torch.no_grad():
+                        value, action, action_log_prob, action_entropy = \
+                            agent.actor_critic.act(state, TEST=True)
+
+                    env.act(action.cpu().numpy().squeeze())
+                    reward, w, collision = env.reward_evaluation(w, step)
+                    max_w = max(max_w, w)
+
+                    if collision == 1:
+                        print "collision!!!!!!!!!!!!!!!!!!!!!!!"
+                        done = True
+                        break
+
+                    if collision == -1:
+                        print "target load error!!!!!!!!!!!!!!!!!!!!!"
+                        break
+            evaluation = [w, max_w]
+            print("w:%f, max_w:%f" % (w, max_w))
+            Evaluation.append(copy.deepcopy(evaluation))
+
+
         if episode_num % 100 == 0:
             file_save = open(record_path + 'Record.pkl', 'wb')
             pickle.dump(Record, file_save)
             file_save.close()
+
+            file_save2 = open(record_path + 'Evaluation.pkl', 'wb')
+            pickle.dump(Evaluation, file_save2)
+            file_save2.close()
 
 
         if episode_num % 100 == 0:
