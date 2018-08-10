@@ -5,6 +5,7 @@
 model*
 Record*
 Env_control.py
+baxter_AC.py
 delaunay_triangulation.py
 .vscode*
 state_heat*

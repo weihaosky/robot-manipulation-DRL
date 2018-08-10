@@ -31,10 +31,12 @@ parser.add_argument('--step', type=int, default=10,
                     help='Baxter actions step for one episode (default: 10)')
 parser.add_argument('--algo', default="a2c",
                     help='algorithm to use: a2c | ppo')
+parser.add_argument('--clip', type=float, default=0.1,
+                    help='ppo clipping parameter (default: 0.1)')
 parser.add_argument('--tau', type=float, default=1.0,
                     help='gae parameter (default: 1.0)')
 parser.add_argument('--gamma', type=float, default=0.99,
-                        help='discount factor for rewards (default: 0.99)')
+                    help='discount factor for rewards (default: 0.99)')
 
 
 if __name__ == '__main__':
@@ -61,7 +63,7 @@ if __name__ == '__main__':
     if args.algo == "a2c":
         agent = algo.A2Cagent(actor_critic, lr=1e-4, tau=args.tau, gamma=args.gamma)
     elif args.algo == "ppo":
-        agent = algo.PPOagent(actor_critic, lr=1e-4, ppo_epoch=1, clip_param=0.1, tau=args.tau, gamma=args.gamma)
+        agent = algo.PPOagent(actor_critic, lr=1e-4, ppo_epoch=1, clip_param=args.clip, tau=args.tau, gamma=args.gamma)
     rollouts = Rollouts()
     buffer = Buffer()
 
