@@ -255,7 +255,7 @@ class Baxter(object):
         w_left1 = np.abs(writhe[10:20, 0:7].flatten().sum())
         w_left2 = np.abs(writhe[10:20, 7:14].flatten().sum())
         w = w_right1 + w_right2 + w_left1 + w_left2
-        reward = (w - w_last) * 50 - 8 + w*5
+        reward = (w - w_last) * 50 - 7.5 + w*5
 
         # Detect collision
         collision = 0

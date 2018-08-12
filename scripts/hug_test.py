@@ -90,6 +90,7 @@ if __name__ == '__main__':
 
     collision = 0
     while not rospy.is_shutdown() and episode_num <= 500:
+        episode_num += 1
         env.reset(episode_num, collision)
         # Calculate writhe before this episode
         _, w, collision = env.reward_evaluation(0, 0)
@@ -103,6 +104,7 @@ if __name__ == '__main__':
                 agent.actor_critic.hx = agent.actor_critic.hx.cuda()
 
         for step in range(1, args.step + 1):
+            print "----------- episode: %d, step:%d ------------" % (episode_num, step)
             state, writhe, InterMesh = env.getstate()
 
             with torch.no_grad():
@@ -111,6 +113,7 @@ if __name__ == '__main__':
 
             env.act(action.cpu().numpy().squeeze())
             reward, w, collision = env.reward_evaluation(w, step)
+            print("reward:%f" % reward, "w:%f" % w)
             max_w = max(max_w, w)
 
             if collision == 1:

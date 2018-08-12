@@ -31,8 +31,8 @@ parser.add_argument('--step', type=int, default=10,
                     help='Baxter actions step for one episode (default: 10)')
 parser.add_argument('--algo', default="ppo",
                     help='algorithm to use: a2c | ppo')
-parser.add_argument('--clip', type=float, default=0.1,
-                    help='ppo clipping parameter (default: 0.1)')
+parser.add_argument('--clip', type=float, default=0.2,
+                    help='ppo clipping parameter (default: 0.2)')
 parser.add_argument('--tau', type=float, default=1.0,
                     help='gae parameter (default: 1.0)')
 parser.add_argument('--gamma', type=float, default=0.99,
