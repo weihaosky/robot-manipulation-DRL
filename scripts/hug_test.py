@@ -88,6 +88,7 @@ if __name__ == '__main__':
     else:
         episode_num = 0
 
+    episode_num = 0
     collision = 0
     while not rospy.is_shutdown() and episode_num <= 500:
         episode_num += 1
@@ -125,7 +126,7 @@ if __name__ == '__main__':
                 print "target load error!!!!!!!!!!!!!!!!!!!!!"
                 break
 
-        if collision == -1 or 1:
+        if collision == -1 or collision == 1:
             episode_num -= 1
             continue
 

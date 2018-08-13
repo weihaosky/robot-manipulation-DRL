@@ -1,6 +1,7 @@
 *.pyc
-*.ipynb
 *.ipynb_checkpoints*
+*.pkl
+*.mat
 .idea*
 model*
 Record*
@@ -9,6 +10,6 @@ baxter_AC.py
 delaunay_triangulation.py
 .vscode*
 state_heat*
-*pkl
 simple_model*
 test.py
+test.ipynb
