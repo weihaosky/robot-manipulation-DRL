@@ -302,10 +302,10 @@ class Baxter(object):
         left_joint = [left_joint_pos[0], left_joint_pos[1], left_joint_pos[2], left_joint_pos[3],
                        left_joint_pos[4], left_joint_pos[5], left_joint_pos[6]]
         # right limb joint positions
-        state1 = np.asarray(right_joint)
+        state1 = np.asarray([right_joint, left_joint]).flatten()
 
         # right limb link cartesian positions
-        state2 = np.asarray(right_limb_pose[5:]).flatten()
+        state2 = np.asarray([right_limb_pose[5:], left_limb_pose[5:]]).flatten()
 
         # hugging target -- cylinder
         # aa = np.asarray([self.cylinder_radius])
