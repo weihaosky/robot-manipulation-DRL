@@ -21,7 +21,7 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                    help='random seed (default: 1)')
 parser.add_argument('--resume', type=int, default=0, metavar='R',
                     help='if resume from previous model (default: No)')
-parser.add_argument('--lstm', action='store_true', default=True,
+parser.add_argument('--lstm', action='store_false', default=True,
                     help='if use LSTM (default: Yes)')
 parser.add_argument('--moveit', action='store_true', default=False,
                     help='if use moveit (default: No)')
@@ -129,7 +129,7 @@ if __name__ == '__main__':
             print "----------- episode: %d, step:%d ------------" % (episode_num, step)
             state, writhe, InterMesh = env.getstate()
 
-            # heat_map evolution
+            # # heat_map evolution
             # fig = plt.figure(0)
             # ax = fig.add_subplot(121)
             # sns.heatmap(writhe, vmax=0.02, vmin=-0.02, cmap=plt.cm.hot)
@@ -139,6 +139,7 @@ if __name__ == '__main__':
             # sns.heatmap(InterMesh, vmax=0.5, vmin=-0.5, cmap=plt.cm.hot)
             # # plt.colorbar()
             # plt.savefig("state_heat.png")
+            # IPython.embed()
             # plt.clf()
 
 

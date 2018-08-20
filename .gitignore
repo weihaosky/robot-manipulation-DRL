@@ -5,6 +5,7 @@
 .idea*
 model*
 Record*
+heat*
 Env_control.py
 baxter_AC.py
 delaunay_triangulation.py

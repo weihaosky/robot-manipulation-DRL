@@ -1,5 +1,5 @@
 from acnetwork import *
-from baxter_env import *
+from baxter_env_floating import *
 import algo
 
 import rospy
@@ -11,6 +11,8 @@ import copy
 
 import pickle
 import argparse
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 parser = argparse.ArgumentParser(description='AC')
@@ -65,7 +67,7 @@ if __name__ == '__main__':
     buffer = Buffer()
 
     # Save the training models
-    model_path = "./model_baxter_net/"
+    model_path = "./model_baxter_net/clip0.2reward-1.5/"
     if not os.path.exists(model_path):
         os.makedirs(model_path)
 
@@ -107,6 +109,19 @@ if __name__ == '__main__':
         for step in range(1, args.step + 1):
             print "----------- episode: %d, step:%d ------------" % (episode_num, step)
             state, writhe, InterMesh = env.getstate()
+
+            # heat_map evolution
+            # plt.clf()
+            # fig = plt.figure(0)
+            # sns.heatmap(writhe, vmax=0.02, vmin=-0.02, cmap=plt.cm.hot)
+            # plt.axis('off')
+            # plt.savefig("heat_writhe.png")
+            #
+            # plt.clf()
+            # fig = plt.figure(0)
+            # sns.heatmap(InterMesh, vmax=0.3, vmin=-0.3, cmap=plt.cm.hot)
+            # plt.axis('off')
+            # plt.savefig("heat_intermesh.png")
 
             with torch.no_grad():
                 value, action, action_log_prob, action_entropy = \

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+
+<group ns="humanoid">
+    <arg name="humanoid_urdf" default="humanoid-static.urdf"/>
+    <param name="robot_description" textfile="$(find baxter_hug)/gazebo_models/humanoid/$(arg humanoid_urdf)" />
+    <node name="urdf_spawner_humanoid" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" 
+        args="-urdf -model humanoid -param robot_description -x 1.5 -z 0.5 -R 0.0 -P -0.79 -Y 0.0"/>
+</group>
+</launch>
