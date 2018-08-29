@@ -1,5 +1,5 @@
 from acnetwork import *
-from baxter_env_floating import *
+from baxter_env_real import *
 import algo
 
 import rospy
@@ -20,7 +20,7 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                    help='random seed (default: 1)')
 parser.add_argument('--resume', type=int, default=0, metavar='R',
                     help='if resume from previous model (default: No)')
-parser.add_argument('--lstm', action='store_true', default=True,
+parser.add_argument('--lstm', action='store_false', default=True,
                     help='if use LSTM (default: Yes)')
 parser.add_argument('--moveit', action='store_true', default=False,
                     help='if use moveit (default: No)')
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     buffer = Buffer()
 
     # Save the training models
-    model_path = "./model_baxter_net/clip0.2reward-1.5/"
+    model_path = "./model_baxter_net/clip0.2reward-1.5movinghuman1/"
     if not os.path.exists(model_path):
         os.makedirs(model_path)
 

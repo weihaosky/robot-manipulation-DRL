@@ -6,7 +6,7 @@
     <arg name="humanoid_urdf" default="humanoid-fat.urdf"/>
     <param name="robot_description" textfile="$(find baxter_hug)/gazebo_models/humanoid/$(arg humanoid_urdf)" />
     <node name="urdf_spawner_humanoid" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" 
-        args="-urdf -model humanoid -param robot_description -x 1"/>
+        args="-urdf -model humanoid -param robot_description -x 0.5"/>
 
     <!-- loads the controllers -->
     <rosparam file="$(find baxter_hug)/gazebo_models/humanoid/config.yaml" command="load" />
