@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+
+<group ns="humanoid_viz">
+    <arg name="humanoid_urdf" default="humanoid-viz.urdf"/>
+    <param name="robot_description" textfile="$(find baxter_hug)/gazebo_models/humanoid/$(arg humanoid_urdf)" />
+    <node name="urdf_spawner_humanoid_viz" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" 
+        args="-urdf -model humanoid_viz -param robot_description -x 1.5 -z 0.0"/>
+
+
+    <!-- converts joint states to TF transforms -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" >
+        <remap from="/joint_states" to="/humanoid_viz/joint_states" />
+    </node>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" >
+        <remap from="/state" to="/humanoid_viz/state" />
+    </node>
+
+</group>
+</launch>

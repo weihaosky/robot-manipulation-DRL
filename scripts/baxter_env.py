@@ -336,6 +336,8 @@ class Baxter(object):
         # ############################### interaction mesh ##################################
         graph_points = np.concatenate((right_limb_pose[5:], left_limb_pose[5:], self.target_line), 0)
         InterMesh = np.empty(graph_points.shape)
+        mesh1 = []
+        mesh2 = []
         for idx, point in enumerate(graph_points):
             neighbor_index = find_neighbors(idx, self.triangulation)
             W = 0
@@ -345,6 +347,8 @@ class Baxter(object):
                 W = W + 1.0 / math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
             # calculate Laplace coordinates
             for nei_point in graph_points[neighbor_index]:
+                mesh1.append(point)
+                mesh2.append(nei_point)
                 dis_nei = math.sqrt( (nei_point[0] - point[0])**2 + (nei_point[1] - point[1])**2 + (nei_point[2] - point[2])**2 )
                 Lap = Lap - nei_point / ( dis_nei * W )
             InterMesh[idx] = Lap
@@ -376,7 +380,7 @@ class Baxter(object):
         # state5 = DisMesh.flatten()
 
         state = [state1, state2, state3, state4, state5]
-        return state, writhe, InterMesh
+        return state, writhe, InterMesh, [mesh1, mesh2]
 
     def act(self, action):
 

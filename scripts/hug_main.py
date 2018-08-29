@@ -52,7 +52,7 @@ if __name__ == '__main__':
     # Initilize ros environment, baxter agent
     rospy.init_node('baxter_hug')
     env = Baxter(use_moveit)
-    state, _, _ = env.getstate()
+    state, _, _, _ = env.getstate()
 
     # Initialize a2c network
     actor_critic = ACNet(state, use_cuda, use_lstm)
@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
         for step in range(1, args.step+1):
             print "----------- episode: %d, step:%d ------------" % (episode_num, step)
-            state, writhe, InterMesh = env.getstate()
+            state, writhe, InterMesh, _ = env.getstate()
 
             # # heat_map evolution
             # fig = plt.figure(0)
@@ -175,7 +175,7 @@ if __name__ == '__main__':
         value_terminal = torch.zeros(1, 1)
         if use_cuda:
             value_terminal = value_terminal.cuda()
-        state, _, _ = env.getstate()
+        state, _, _, _ = env.getstate()
         if not done:
             with torch.no_grad():
                 value_terminal = agent.actor_critic.getvalue(state)
@@ -224,7 +224,7 @@ if __name__ == '__main__':
                         agent.actor_critic.hx = agent.actor_critic.hx.cuda()
 
                 for step in range(1, args.step + 1):
-                    state, writhe, InterMesh = env.getstate()
+                    state, writhe, InterMesh, _ = env.getstate()
 
                     with torch.no_grad():
                         value, action, action_log_prob, action_entropy = \

@@ -14,6 +14,9 @@ import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from visualization_msgs.msg import Marker
+from geometry_msgs import msg as geom_msg
+
 
 parser = argparse.ArgumentParser(description='AC')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -51,7 +54,7 @@ if __name__ == '__main__':
     # Initilize ros environment, baxter agent
     rospy.init_node('baxter_hug')
     env = Baxter(use_moveit)
-    state, _, _ = env.getstate()
+    state, _, _, _ = env.getstate()
 
     # Initialize a2c network
     actor_critic = ACNet(state, use_cuda, use_lstm)
@@ -108,7 +111,29 @@ if __name__ == '__main__':
 
         for step in range(1, args.step + 1):
             print "----------- episode: %d, step:%d ------------" % (episode_num, step)
-            state, writhe, InterMesh = env.getstate()
+            state, writhe, InterMesh, mesh = env.getstate()
+
+            # # graph visualization
+            # markerPub = rospy.Publisher('viz_msgs_marker_publisher',
+            #                             Marker, latch=True, queue_size=10)
+            # marker = Marker(type=Marker.LINE_LIST, ns='baxter_hug', action=Marker.ADD)
+            # marker.header.frame_id = 'base'
+            # marker.header.stamp = rospy.Time.now()
+            # marker.scale.x = 0.002
+            # marker.scale.y = 0.002
+            # marker.color.b = 0.74100
+            # marker.color.g = 0.44700
+            # marker.color.a = 1.0
+            # marker.pose.position = geom_msg.Point(0, 0, 0)
+            # marker.pose.orientation = geom_msg.Quaternion(0, 0, 0, 1)
+            #
+            # marker.points = []
+            # for i in range(len(mesh[0])):
+            #     marker.points.extend([geom_msg.Point(mesh[0][i][0], mesh[0][i][1], mesh[0][i][2]),
+            #                           geom_msg.Point(mesh[1][i][0], mesh[1][i][1], mesh[1][i][2])])
+            # marker.lifetime = rospy.Duration()
+            # markerPub.publish(marker)
+            # iii = raw_input("Please record the graph\n")
 
             # heat_map evolution
             # plt.clf()
