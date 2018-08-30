@@ -141,7 +141,7 @@ class ACNet(nn.Module):
         a_dist_entropy = a_dist.entropy()
 
         # print("action_mu:", action_mu)
-        print("action_sigma:", action_sigma.data)
+        # print("action_sigma:", action_sigma.data)
         # print("action:", action)
         # print("hx,cx:",self.hx,self.cx)
         # print "value:",
@@ -220,7 +220,7 @@ class Buffer(object):
     def generator(self):
         perm = torch.randperm(len(self.roll))
         for i in range(len(self.roll)):
-            print("replay order:", i)
+            # print("replay order:", i)
             yield self.roll[i]
 
     def clear(self):

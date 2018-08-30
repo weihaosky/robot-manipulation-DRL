@@ -255,14 +255,23 @@ class Baxter(object):
         w_left1 = np.abs(writhe[10:20, 0:7].flatten().sum())
         w_left2 = np.abs(writhe[10:20, 7:14].flatten().sum())
         w = w_right1 + w_right2 + w_left1 + w_left2
-        reward = (w - w_last) * 50 - 7.5 + w*5
+        reward = (w - w_last) * 50 - 7.5 + w * 5
+
+        # Prevent robot arms above humanoid arms
+        height_human = self.target_line[4][2] + 0.02
+        height_robot = (right_limb_pose[5:][:, 2].mean() + left_limb_pose[5:][:, 2].mean())/2.0
+        r2 = height_robot - height_human
+        print r2
+        if r2 > 0:
+            print("!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!!!!!!!!!!!")
+            reward = reward - r2
 
         # Detect collision
         collision = 0
         current_pos = self.target_line[4]
         target_move = math.hypot((current_pos[0] - self.target_pos_start[0]),
-                             (current_pos[1] - self.target_pos_start[1]))
-        # print("state_pose:", current_pos, "#########")
+                                 (current_pos[1] - self.target_pos_start[1]))
+
         print("target_move:" , target_move)
         if target_move > 0.4:
             # collision = 1   # collision
@@ -273,7 +282,6 @@ class Baxter(object):
 
         # Listen to collision information
         # msg = self.collision_getter.get_msg()
-        # print("Collision massage:", msg)
         # if msg:
         #     if msg.data == "cylinder_collision":
         #         collision = 1
@@ -294,7 +302,7 @@ class Baxter(object):
         self.target_line = np.dot(T[:3, :3], (self.target_line_start - self.target_pos_start).T).T + \
                            [torso_pose.position.x, torso_pose.position.y, torso_pose.position.z] + \
                            [0, 0, -0.93]
-        # print(self.target_line)
+
         right_limb_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_limb_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
         right_joint = [right_joint_pos[0], right_joint_pos[1], right_joint_pos[2], right_joint_pos[3],
@@ -503,7 +511,6 @@ def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
                    PyKDL.JntArray(7)]
     for i in range(7):
         for j in range(i+1):
-            # print i, j
             limb_joint[i][j] = kdl_array[j]
 
 
@@ -519,7 +526,6 @@ def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
 
 
 def movearm_job(limb_interface, action):
-    print("action: ", action)
     cmd = dict()
     # ########## delta Joint position control ###############
     limb_interface.set_joint_position_speed(0.1)
