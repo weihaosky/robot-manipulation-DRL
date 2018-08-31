@@ -70,7 +70,7 @@ if __name__ == '__main__':
     buffer = Buffer()
 
     # Save the training models
-    model_path = "./model_baxter_net/clip0.2reward-1.5movinghuman1/"
+    model_path = "./model_baxter_net/clip0.2reward-1.5/"
     if not os.path.exists(model_path):
         os.makedirs(model_path)
 
@@ -113,7 +113,7 @@ if __name__ == '__main__':
             print "----------- episode: %d, step:%d ------------" % (episode_num, step)
             state, writhe, InterMesh, mesh = env.getstate()
 
-            # # graph visualization
+            # ######################## graph visualization #########################
             # markerPub = rospy.Publisher('viz_msgs_marker_publisher',
             #                             Marker, latch=True, queue_size=10)
             # marker = Marker(type=Marker.LINE_LIST, ns='baxter_hug', action=Marker.ADD)
@@ -135,7 +135,7 @@ if __name__ == '__main__':
             # markerPub.publish(marker)
             # iii = raw_input("Please record the graph\n")
 
-            # heat_map evolution
+            # ###################### heat_map evolution ######################
             # plt.clf()
             # fig = plt.figure(0)
             # sns.heatmap(writhe, vmax=0.02, vmin=-0.02, cmap=plt.cm.hot)
@@ -147,6 +147,20 @@ if __name__ == '__main__':
             # sns.heatmap(InterMesh, vmax=0.3, vmin=-0.3, cmap=plt.cm.hot)
             # plt.axis('off')
             # plt.savefig("heat_intermesh.png")
+
+            # ##################### drag the robot ##########################
+            # command = raw_input("Do your want to drag the robot?\n")
+            # if command == '1':
+            #     IPython.embed()
+            #     model_msg = ModelState()
+            #     model_msg.model_name = "baxter"
+            #     model_msg.reference_frame = "world"
+            #     for i in range(100):
+            #         model_msg.pose.position.x = -i/100.0
+            #         model_msg.pose.position.y = 0.0
+            #         model_msg.pose.position.z = 0.93
+            #         resp_set = env.set_model_state(model_msg)
+            #         rospy.sleep(0.1)
 
             with torch.no_grad():
                 value, action, action_log_prob, action_entropy = \
