@@ -164,7 +164,6 @@ class Baxter(object):
             humanoid_pose.orientation.w = quaternion0[3]
             resp = self.load_model("humanoid", "humanoid/humanoid-static-right.urdf", humanoid_pose, type="urdf")
             rospy.sleep(0.1)
-            IPython.embed()
 
         if reset_mode == 5:
             self.target_line_start = self.target_line_start - self.target_pos_start
