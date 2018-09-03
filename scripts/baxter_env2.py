@@ -256,8 +256,8 @@ class Baxter(object):
         writhe = np.empty((15, 14))
         for idx_target in range(5):
             for idx_robot in range(5, 12):
-                x1_right = self.target_line[idx_target].copy()
-                x2_right = self.target_line[idx_target + 1].copy()
+                x1_right = self.target_line[idx_target + 5].copy()
+                x2_right = self.target_line[idx_target + 5 + 1].copy()
                 writhe[idx_target, idx_robot - 5] = GLI(x1_right, x2_right,
                                                         right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
                 x1_right[1] -= 0.15
@@ -268,8 +268,8 @@ class Baxter(object):
                 x2_right[1] += 0.3
                 writhe[idx_target + 10, idx_robot - 5] = GLI(x1_right, x2_right,
                                                         right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
-                x1_left = self.target_line[idx_target + 5].copy()
-                x2_left = self.target_line[idx_target + 5 + 1].copy()
+                x1_left = self.target_line[idx_target].copy()
+                x2_left = self.target_line[idx_target + 1].copy()
                 writhe[idx_target, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
                                                             left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
                 x1_left[1] -= 0.15
