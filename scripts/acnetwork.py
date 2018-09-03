@@ -141,7 +141,7 @@ class ACNet(nn.Module):
         a_dist_entropy = a_dist.entropy()
 
         # print("action_mu:", action_mu)
-        # print("action_sigma:", action_sigma.data)
+        print("action_sigma:", action_sigma.data)
         # print("action:", action)
         # print("hx,cx:",self.hx,self.cx)
         # print "value:",

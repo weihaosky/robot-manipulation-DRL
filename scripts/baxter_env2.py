@@ -110,7 +110,7 @@ class Baxter(object):
 
         # ###################### Reset hugging target ##########################
         self.reset_mode = 4 #np.random.choice([1, 2, 4, 5])
-        if reset_mode == 1 or reset_mode == 2:
+        if self.reset_mode == 1 or self.reset_mode == 2:
             self.target_line_start = self.target_line_start - self.target_pos_start
             self.target_pos_start[0] = random.uniform(0.4, 0.8)
             self.target_pos_start[1] = random.uniform(-0.2, 0.2)
@@ -125,7 +125,7 @@ class Baxter(object):
             resp = self.load_model("humanoid", "humanoid/humanoid-static.urdf", humanoid_pose, type="urdf")
             rospy.sleep(0.1)
 
-        if reset_mode == 3:
+        if self.reset_mode == 3:
             self.target_line_start = self.target_line_start - self.target_pos_start
             self.target_pos_start[0] = 1.9
             self.target_pos_start[1] = random.uniform(-0.2, 0.2)
@@ -145,7 +145,7 @@ class Baxter(object):
             resp = self.load_model("humanoid", "humanoid/humanoid-static-withouthead.urdf", humanoid_pose, type="urdf")
             rospy.sleep(0.1)
 
-        if reset_mode == 4:
+        if self.reset_mode == 4:
             self.target_line_start = self.target_line_start - self.target_pos_start
             self.target_pos_start[0] = 0.5
             self.target_pos_start[1] = 1.05
@@ -165,7 +165,7 @@ class Baxter(object):
             resp = self.load_model("humanoid", "humanoid/humanoid-static-right.urdf", humanoid_pose, type="urdf")
             rospy.sleep(0.1)
 
-        if reset_mode == 5:
+        if self.reset_mode == 5:
             self.target_line_start = self.target_line_start - self.target_pos_start
             self.target_pos_start[0] = 0.5
             self.target_pos_start[1] = -1.05
@@ -253,8 +253,8 @@ class Baxter(object):
         # if self.reset_mode == 4 or self.reset_mode == 5:
         #     w = w_right_torso + w_left_torso
 
-        writhe = np.empty((30, 14))
-        for idx_target in range(10):
+        writhe = np.empty((15, 14))
+        for idx_target in range(5):
             for idx_robot in range(5, 12):
                 x1_right = self.target_line[idx_target].copy()
                 x2_right = self.target_line[idx_target + 1].copy()
@@ -262,23 +262,23 @@ class Baxter(object):
                                                         right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
                 x1_right[1] -= 0.15
                 x2_right[1] -= 0.15
-                writhe[idx_target + 10, idx_robot - 5] = GLI(x1_right, x2_right,
+                writhe[idx_target + 5, idx_robot - 5] = GLI(x1_right, x2_right,
                                                         right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
                 x1_right[1] += 0.3
                 x2_right[1] += 0.3
-                writhe[idx_target + 20, idx_robot - 5] = GLI(x1_right, x2_right,
+                writhe[idx_target + 10, idx_robot - 5] = GLI(x1_right, x2_right,
                                                         right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
-                x1_left = self.target_line[idx_target].copy()
-                x2_left = self.target_line[idx_target + 1].copy()
+                x1_left = self.target_line[idx_target + 5].copy()
+                x2_left = self.target_line[idx_target + 5 + 1].copy()
                 writhe[idx_target, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
                                                             left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
                 x1_left[1] -= 0.15
                 x2_left[1] -= 0.15
-                writhe[idx_target + 10, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
+                writhe[idx_target + 5, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
                                                             left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
                 x1_left[1] += 0.3
                 x2_left[1] += 0.3
-                writhe[idx_target + 20, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
+                writhe[idx_target + 10, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
                                                                  left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
                 # writhe[idx_target, idx_robot-5] = \
                 #     GLI(self.target_line[idx_target], self.target_line[idx_target+1],
@@ -286,12 +286,12 @@ class Baxter(object):
                 # writhe[idx_target, idx_robot-5+7] = \
                 #     GLI(self.target_line[idx_target], self.target_line[idx_target+1],
                 #         left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
-        w_right1 = np.abs(writhe[0:10, 0:7].flatten().sum())
-        w_right2 = np.abs(writhe[10:20, 0:7].flatten().sum())
-        w_right3 = np.abs(writhe[20:30, 0:7].flatten().sum())
-        w_left1 = np.abs(writhe[0:10, 7:14].flatten().sum())
-        w_left2 = np.abs(writhe[10:20, 7:14].flatten().sum())
-        w_left3 = np.abs(writhe[20:30, 7:14].flatten().sum())
+        w_right1 = np.abs(writhe[0:5, 0:7].flatten().sum())
+        w_right2 = np.abs(writhe[5:10, 0:7].flatten().sum())
+        w_right3 = np.abs(writhe[10:15, 0:7].flatten().sum())
+        w_left1 = np.abs(writhe[0:5, 7:14].flatten().sum())
+        w_left2 = np.abs(writhe[5:10, 7:14].flatten().sum())
+        w_left3 = np.abs(writhe[10:15, 7:14].flatten().sum())
         w = w_right1 + w_right2 + w_right3 + w_left1 + w_left2 + w_left3
         reward = (w - w_last) * 50 #- 5 + w * 5
 
