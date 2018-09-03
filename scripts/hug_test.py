@@ -155,12 +155,21 @@ if __name__ == '__main__':
             #     model_msg = ModelState()
             #     model_msg.model_name = "baxter"
             #     model_msg.reference_frame = "world"
-            #     for i in range(100):
-            #         model_msg.pose.position.x = -i/100.0
+            #     for i in range(200):
+            #         model_msg.pose.position.x = -i/50.0
             #         model_msg.pose.position.y = 0.0
             #         model_msg.pose.position.z = 0.93
             #         resp_set = env.set_model_state(model_msg)
             #         rospy.sleep(0.1)
+            # if command == '2':
+            #     model_msg = ModelState()
+            #     model_msg.model_name = "baxter"
+            #     model_msg.reference_frame = "world"
+            #     model_msg.pose.position.x = 0.0
+            #     model_msg.pose.position.y = 0.0
+            #     model_msg.pose.position.z = 0.93
+            #     resp_set = env.set_model_state(model_msg)
+            #     rospy.sleep(0.1)
 
             with torch.no_grad():
                 value, action, action_log_prob, action_entropy = \
