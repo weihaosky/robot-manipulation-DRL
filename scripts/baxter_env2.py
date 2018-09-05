@@ -93,11 +93,11 @@ class Baxter(object):
 
     def reset(self, episode_num, collision):
         print "Resetting Baxter..."
-        self.delete_model("humanoid")
-        rospy.sleep(0.1)
+        if episode_num == 1:
+            self.delete_model("humanoid")
+            rospy.sleep(0.1)
 
         # reset arm position
-        # right arm
         start_point_right = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
         t01 = threading.Thread(target=resetarm_job, args=(self.right_limb_interface, start_point_right))
         t01.start()
@@ -105,85 +105,101 @@ class Baxter(object):
         start_point_left = [0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
         t02 = threading.Thread(target=resetarm_job, args=(self.left_limb_interface, start_point_left))
         t02.start()
-        t02.join()
-        t01.join()
+        self.set_model_config('baxter', 'robot_description',
+                              ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2'],
+                              [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0])
+        self.set_model_config('baxter', 'robot_description',
+                              ['left_s0', 'left_s1', 'left_e0', 'left_e1', 'left_w0', 'left_w1', 'left_w2'],
+                              [0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0])
+
+        # # right arm
+        # start_point_right = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+        # t01 = threading.Thread(target=resetarm_job, args=(self.right_limb_interface, start_point_right))
+        # t01.start()
+        # # left arm
+        # start_point_left = [0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+        # t02 = threading.Thread(target=resetarm_job, args=(self.left_limb_interface, start_point_left))
+        # t02.start()
+        # t02.join()
+        # t01.join()
 
         # ###################### Reset hugging target ##########################
         self.reset_mode = 4 #np.random.choice([1, 2, 4, 5])
-        if self.reset_mode == 1 or self.reset_mode == 2:
-            self.target_line_start = self.target_line_start - self.target_pos_start
-            self.target_pos_start[0] = random.uniform(0.4, 0.8)
-            self.target_pos_start[1] = random.uniform(-0.2, 0.2)
-            self.target_pos_start[2] = 0.0
-            self.target_line_start = self.target_line_start + self.target_pos_start
-            self.target_line = self.target_line_start
-            print "load gazebo model"
-            humanoid_pose = Pose()
-            humanoid_pose.position.x = self.target_pos_start[0]
-            humanoid_pose.position.y = self.target_pos_start[1]
-            humanoid_pose.position.z = self.target_pos_start[2]
-            resp = self.load_model("humanoid", "humanoid/humanoid-static.urdf", humanoid_pose, type="urdf")
-            rospy.sleep(0.1)
+        if episode_num == 1:
+            if self.reset_mode == 1 or self.reset_mode == 2:
+                self.target_line_start = self.target_line_start - self.target_pos_start
+                self.target_pos_start[0] = random.uniform(0.4, 0.8)
+                self.target_pos_start[1] = random.uniform(-0.2, 0.2)
+                self.target_pos_start[2] = 0.0
+                self.target_line_start = self.target_line_start + self.target_pos_start
+                self.target_line = self.target_line_start
+                print "load gazebo model"
+                humanoid_pose = Pose()
+                humanoid_pose.position.x = self.target_pos_start[0]
+                humanoid_pose.position.y = self.target_pos_start[1]
+                humanoid_pose.position.z = self.target_pos_start[2]
+                resp = self.load_model("humanoid", "humanoid/humanoid-static.urdf", humanoid_pose, type="urdf")
+                rospy.sleep(0.1)
 
-        if self.reset_mode == 3:
-            self.target_line_start = self.target_line_start - self.target_pos_start
-            self.target_pos_start[0] = 1.9
-            self.target_pos_start[1] = random.uniform(-0.2, 0.2)
-            self.target_pos_start[2] = random.uniform(1.2, 1.4)
-            self.target_line_start = self.target_line_start + self.target_pos_start
-            self.target_line = self.target_line_start
-            print "load gazebo model"
-            humanoid_pose = Pose()
-            humanoid_pose.position.x = self.target_pos_start[0]
-            humanoid_pose.position.y = self.target_pos_start[1]
-            humanoid_pose.position.z = self.target_pos_start[2]
-            quaternion0 = tf.transformations.quaternion_from_euler(0.0, -1.57, 0.0)
-            humanoid_pose.orientation.x = quaternion0[0]
-            humanoid_pose.orientation.y = quaternion0[1]
-            humanoid_pose.orientation.z = quaternion0[2]
-            humanoid_pose.orientation.w = quaternion0[3]
-            resp = self.load_model("humanoid", "humanoid/humanoid-static-withouthead.urdf", humanoid_pose, type="urdf")
-            rospy.sleep(0.1)
+            if self.reset_mode == 3:
+                self.target_line_start = self.target_line_start - self.target_pos_start
+                self.target_pos_start[0] = 1.9
+                self.target_pos_start[1] = random.uniform(-0.2, 0.2)
+                self.target_pos_start[2] = random.uniform(1.2, 1.4)
+                self.target_line_start = self.target_line_start + self.target_pos_start
+                self.target_line = self.target_line_start
+                print "load gazebo model"
+                humanoid_pose = Pose()
+                humanoid_pose.position.x = self.target_pos_start[0]
+                humanoid_pose.position.y = self.target_pos_start[1]
+                humanoid_pose.position.z = self.target_pos_start[2]
+                quaternion0 = tf.transformations.quaternion_from_euler(0.0, -1.57, 0.0)
+                humanoid_pose.orientation.x = quaternion0[0]
+                humanoid_pose.orientation.y = quaternion0[1]
+                humanoid_pose.orientation.z = quaternion0[2]
+                humanoid_pose.orientation.w = quaternion0[3]
+                resp = self.load_model("humanoid", "humanoid/humanoid-static-withouthead.urdf", humanoid_pose, type="urdf")
+                rospy.sleep(0.1)
 
-        if self.reset_mode == 4:
-            self.target_line_start = self.target_line_start - self.target_pos_start
-            self.target_pos_start[0] = 0.5
-            self.target_pos_start[1] = 1.05
-            self.target_pos_start[2] = 1.3
-            self.target_line_start = self.target_line_start + self.target_pos_start
-            self.target_line = self.target_line_start
-            print "load gazebo model"
-            humanoid_pose = Pose()
-            humanoid_pose.position.x = self.target_pos_start[0]
-            humanoid_pose.position.y = self.target_pos_start[1]
-            humanoid_pose.position.z = self.target_pos_start[2]
-            quaternion0 = tf.transformations.quaternion_from_euler(1.57, 0.0, 0.0)
-            humanoid_pose.orientation.x = quaternion0[0]
-            humanoid_pose.orientation.y = quaternion0[1]
-            humanoid_pose.orientation.z = quaternion0[2]
-            humanoid_pose.orientation.w = quaternion0[3]
-            resp = self.load_model("humanoid", "humanoid/humanoid-static-right.urdf", humanoid_pose, type="urdf")
-            rospy.sleep(0.1)
+            if self.reset_mode == 4:
+                self.target_line_start = self.target_line_start - self.target_pos_start
+                self.target_pos_start[0] = 0.5
+                self.target_pos_start[1] = 1.05
+                self.target_pos_start[2] = 1.3
+                self.target_line_start = self.target_line_start + self.target_pos_start
+                self.target_line = self.target_line_start
+                print "load gazebo model"
+                humanoid_pose = Pose()
+                humanoid_pose.position.x = self.target_pos_start[0]
+                humanoid_pose.position.y = self.target_pos_start[1]
+                humanoid_pose.position.z = self.target_pos_start[2]
+                quaternion0 = tf.transformations.quaternion_from_euler(1.57, 0.0, 0.0)
+                humanoid_pose.orientation.x = quaternion0[0]
+                humanoid_pose.orientation.y = quaternion0[1]
+                humanoid_pose.orientation.z = quaternion0[2]
+                humanoid_pose.orientation.w = quaternion0[3]
+                resp = self.load_model("humanoid", "humanoid/humanoid-static-right.urdf", humanoid_pose, type="urdf")
+                rospy.sleep(0.1)
 
-        if self.reset_mode == 5:
-            self.target_line_start = self.target_line_start - self.target_pos_start
-            self.target_pos_start[0] = 0.5
-            self.target_pos_start[1] = -1.05
-            self.target_pos_start[2] = 1.3
-            self.target_line_start = self.target_line_start + self.target_pos_start
-            self.target_line = self.target_line_start
-            print "load gazebo model"
-            humanoid_pose = Pose()
-            humanoid_pose.position.x = self.target_pos_start[0]
-            humanoid_pose.position.y = self.target_pos_start[1]
-            humanoid_pose.position.z = self.target_pos_start[2]
-            quaternion0 = tf.transformations.quaternion_from_euler(-1.57, 0.0, 0.0)
-            humanoid_pose.orientation.x = quaternion0[0]
-            humanoid_pose.orientation.y = quaternion0[1]
-            humanoid_pose.orientation.z = quaternion0[2]
-            humanoid_pose.orientation.w = quaternion0[3]
-            resp = self.load_model("humanoid", "humanoid/humanoid-static-left.urdf", humanoid_pose, type="urdf")
-            rospy.sleep(0.1)
+            if self.reset_mode == 5:
+                self.target_line_start = self.target_line_start - self.target_pos_start
+                self.target_pos_start[0] = 0.5
+                self.target_pos_start[1] = -1.05
+                self.target_pos_start[2] = 1.3
+                self.target_line_start = self.target_line_start + self.target_pos_start
+                self.target_line = self.target_line_start
+                print "load gazebo model"
+                humanoid_pose = Pose()
+                humanoid_pose.position.x = self.target_pos_start[0]
+                humanoid_pose.position.y = self.target_pos_start[1]
+                humanoid_pose.position.z = self.target_pos_start[2]
+                quaternion0 = tf.transformations.quaternion_from_euler(-1.57, 0.0, 0.0)
+                humanoid_pose.orientation.x = quaternion0[0]
+                humanoid_pose.orientation.y = quaternion0[1]
+                humanoid_pose.orientation.z = quaternion0[2]
+                humanoid_pose.orientation.w = quaternion0[3]
+                resp = self.load_model("humanoid", "humanoid/humanoid-static-left.urdf", humanoid_pose, type="urdf")
+                rospy.sleep(0.1)
 
         print "done"
 
@@ -619,7 +635,8 @@ def resetarm_job(limb_interface, start_point):
     for i, joint in enumerate(limb_interface.joint_names()):
         cmd[joint] = start_point[i]
     try:
-        limb_interface.move_to_joint_positions(cmd, timeout=5.0)
+        # limb_interface.move_to_joint_positions(cmd, timeout=5.0)
+        limb_interface.set_joint_positions(cmd, raw=False)
     except Exception, e:
         rospy.logerr('Error: %s', str(e))
 
