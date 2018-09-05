@@ -65,13 +65,24 @@ class Baxter(object):
             self.group = moveit_commander.MoveGroupCommander(self.group_name)
 
         # ######################## Create Hugging target #############################
-        # humanoid hugging target # remember to make sure target_line correct + - y
-        self.target_pos_start = np.asarray([0.5, 0, -0.93]) # robot /base frame, z = -0.93 w.r.t /world frame
-        self.target_line_start = np.empty([22, 3], float)
-        for i in range(11):
-            self.target_line_start[i] = self.target_pos_start + [0, -0.0, 1.8] - (asarray([0, -0.0, 1.8]) - asarray([0, -0.0, 0.3]))/10*i
-            self.target_line_start[i+11] = self.target_pos_start + [0, -0.5, 1.3] + (asarray([0, 0.5, 1.3]) - asarray([0, -0.5, 1.3]))/10*i
-        self.target_line = self.target_line_start
+        self.hug_target = 2
+        if self.hug_target == 1:    # cylinder hugging target
+            self.cylinder1= asarray([0.4, 0.0, -0.43])   # robot /base frame, z = -0.93 w.r.t /world frame
+            self.cylinder_height = 1.8
+            self.cylinder_radius = 0.05
+            segment = 10
+            self.target_line_start = np.empty([segment, 3], float)
+            for i in range(len(self.target_line_start)):
+                self.target_line_start[i] = self.cylinder1 + asarray([0, 0, self.cylinder_height])/9.0 * i
+            self.target_line = self.target_line_start
+
+        if self.hug_target == 2:    # humanoid hugging target # remember to make sure target_line correct + - y
+            self.target_pos_start = np.asarray([0.5, 0, -0.43]) # robot /base frame, z = -0.93 w.r.t /world frame
+            self.target_line_start = np.empty([22, 3], float)
+            for i in range(11):
+                self.target_line_start[i] = self.target_pos_start + [0, -0.0, 1.8] - (asarray([0, -0.0, 1.8]) - asarray([0, -0.0, 0.5]))/10*i
+                self.target_line_start[i+11] = self.target_pos_start + [0, -0.5, 1.3] + (asarray([0, 0.5, 1.3]) - asarray([0, -0.5, 1.3]))/10*i
+            self.target_line = self.target_line_start
 
         # Build line point graph for interaction mesh
         # reset right arm
@@ -93,101 +104,106 @@ class Baxter(object):
 
     def reset(self, episode_num, collision):
         print "Resetting Baxter..."
-        self.delete_model("humanoid")
-        rospy.sleep(0.1)
+        # self.delete_model("hugging_target")
+        # rospy.sleep(0.1)
+        model_msg = ModelState()
+        model_msg.model_name = "humanoid"
+        model_msg.reference_frame = "world"
+        model_msg.pose.position.x = 2.0
+        model_msg.pose.position.y = 0.0
+        model_msg.pose.position.z = 0
+        # self.set_model_config('hugging_target', 'humanoids',
+        #                       ['LeftLeg_joint', 'RightLeg_joint', 'RightUpperArm_joint', 'Head_joint'],
+        #                       [0.0, 0.0, 0.0, 0.0])
+        resp_set = self.set_model_state(model_msg)
 
         # reset arm position
-        # right arm
-        start_point_right = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
-        t01 = threading.Thread(target=resetarm_job, args=(self.right_limb_interface, start_point_right))
-        t01.start()
-        # left arm
-        start_point_left = [0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
-        t02 = threading.Thread(target=resetarm_job, args=(self.left_limb_interface, start_point_left))
-        t02.start()
-        t02.join()
-        t01.join()
+        if not self.use_moveit:
+            # right arm
+            start_point_right = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+            t01 = threading.Thread(target=resetarm_job, args=(self.right_limb_interface, start_point_right))
+            t01.start()
+            # left arm
+            start_point_left = [0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+            t02 = threading.Thread(target=resetarm_job, args=(self.left_limb_interface, start_point_left))
+            t02.start()
+            t02.join()
+            t01.join()
+        else:
+            # Moveit joint move
+            joint_goal = self.group.get_current_joint_values()
+            # s0, s1, e0, e1, w0, w1, w2
+            joint_goal[0] = 0.0
+            joint_goal[1] = -0.55
+            joint_goal[2] = 0.0
+            joint_goal[3] = 0.75
+            joint_goal[4] = 0.0
+            joint_goal[5] = 1.26
+            joint_goal[6] = 0.0
+            self.group.go(joint_goal, wait=True)
+            self.group.stop()
 
         # ###################### Reset hugging target ##########################
-        self.reset_mode = 4 #np.random.choice([1, 2, 4, 5])
-        if self.reset_mode == 1 or self.reset_mode == 2:
-            self.target_line_start = self.target_line_start - self.target_pos_start
-            self.target_pos_start[0] = random.uniform(0.4, 0.8)
-            self.target_pos_start[1] = random.uniform(-0.2, 0.2)
-            self.target_pos_start[2] = 0.0
-            self.target_line_start = self.target_line_start + self.target_pos_start
+        if self.hug_target == 1:
+            # Randomly initialize target position
+            self.cylinder1[0] = random.uniform(0.3, 0.8)
+            self.cylinder1[1] = random.uniform(-0.2, 0.2)
+            cylinder_z = self.cylinder_height / 2.0
+            for i in range(len(self.target_line_start)):
+                self.target_line_start[i] = self.cylinder1 + asarray([0, 0, self.cylinder_height]) / 9.0 * i
             self.target_line = self.target_line_start
-            print "load gazebo model"
-            humanoid_pose = Pose()
-            humanoid_pose.position.x = self.target_pos_start[0]
-            humanoid_pose.position.y = self.target_pos_start[1]
-            humanoid_pose.position.z = self.target_pos_start[2]
-            resp = self.load_model("humanoid", "humanoid/humanoid-static.urdf", humanoid_pose, type="urdf")
-            rospy.sleep(0.1)
 
-        if self.reset_mode == 3:
-            self.target_line_start = self.target_line_start - self.target_pos_start
-            self.target_pos_start[0] = 1.9
-            self.target_pos_start[1] = random.uniform(-0.2, 0.2)
-            self.target_pos_start[2] = random.uniform(1.2, 1.4)
-            self.target_line_start = self.target_line_start + self.target_pos_start
-            self.target_line = self.target_line_start
             print "load gazebo model"
-            humanoid_pose = Pose()
-            humanoid_pose.position.x = self.target_pos_start[0]
-            humanoid_pose.position.y = self.target_pos_start[1]
-            humanoid_pose.position.z = self.target_pos_start[2]
-            quaternion0 = tf.transformations.quaternion_from_euler(0.0, -1.57, 0.0)
-            humanoid_pose.orientation.x = quaternion0[0]
-            humanoid_pose.orientation.y = quaternion0[1]
-            humanoid_pose.orientation.z = quaternion0[2]
-            humanoid_pose.orientation.w = quaternion0[3]
-            resp = self.load_model("humanoid", "humanoid/humanoid-static-withouthead.urdf", humanoid_pose, type="urdf")
-            rospy.sleep(0.1)
+            resp = self.load_model("hugging_target", "cylinder.sdf",
+                               Pose(position=Point(x=self.cylinder1[0], y=self.cylinder1[1], z=cylinder_z)))
 
-        if self.reset_mode == 4:
+        if self.hug_target == 2:
             self.target_line_start = self.target_line_start - self.target_pos_start
-            self.target_pos_start[0] = 0.5
-            self.target_pos_start[1] = 1.05
-            self.target_pos_start[2] = 1.3
+            self.target_pos_start[0] = 0.6#random.uniform(0.4, 0.8)
+            self.target_pos_start[1] = 0.0#random.uniform(-0.2, 0.2)
             self.target_line_start = self.target_line_start + self.target_pos_start
             self.target_line = self.target_line_start
             print "load gazebo model"
-            humanoid_pose = Pose()
-            humanoid_pose.position.x = self.target_pos_start[0]
-            humanoid_pose.position.y = self.target_pos_start[1]
-            humanoid_pose.position.z = self.target_pos_start[2]
-            quaternion0 = tf.transformations.quaternion_from_euler(1.57, 0.0, 0.0)
-            humanoid_pose.orientation.x = quaternion0[0]
-            humanoid_pose.orientation.y = quaternion0[1]
-            humanoid_pose.orientation.z = quaternion0[2]
-            humanoid_pose.orientation.w = quaternion0[3]
-            resp = self.load_model("humanoid", "humanoid/humanoid-static-right.urdf", humanoid_pose, type="urdf")
-            rospy.sleep(0.1)
 
-        if self.reset_mode == 5:
-            self.target_line_start = self.target_line_start - self.target_pos_start
-            self.target_pos_start[0] = 0.5
-            self.target_pos_start[1] = -1.05
-            self.target_pos_start[2] = 1.3
-            self.target_line_start = self.target_line_start + self.target_pos_start
-            self.target_line = self.target_line_start
-            print "load gazebo model"
-            humanoid_pose = Pose()
-            humanoid_pose.position.x = self.target_pos_start[0]
-            humanoid_pose.position.y = self.target_pos_start[1]
-            humanoid_pose.position.z = self.target_pos_start[2]
-            quaternion0 = tf.transformations.quaternion_from_euler(-1.57, 0.0, 0.0)
-            humanoid_pose.orientation.x = quaternion0[0]
-            humanoid_pose.orientation.y = quaternion0[1]
-            humanoid_pose.orientation.z = quaternion0[2]
-            humanoid_pose.orientation.w = quaternion0[3]
-            resp = self.load_model("humanoid", "humanoid/humanoid-static-left.urdf", humanoid_pose, type="urdf")
-            rospy.sleep(0.1)
+            # resp = self.load_model("hugging_target", "humanoid/humanoid.urdf",
+            #                    Pose(position=Point(x=self.target_pos_start[0], y=self.target_pos_start[1], z=0)), type="urdf")
+            # rospy.sleep(0.1)
+            model_msg = ModelState()
+            model_msg.model_name = "humanoid"
+            model_msg.reference_frame = "world"
+            model_msg.pose.position.x = self.target_pos_start[0]
+            model_msg.pose.position.y = self.target_pos_start[1]
+            model_msg.pose.position.z = -0.5
+            resp_set = self.set_model_state(model_msg)
+            rospy.sleep(0.5)
+        # Listen to collision information
+        # rospy.Subscriber(self.collision_topic, String, self.collision_getter)
+
+        if self.use_moveit:
+            # Delete object in the scene
+            count = 0
+            while 'target' in self.scene.getKnownCollisionObjects():
+                count += 1
+                if count > 10:
+                    self.scene._collision = []
+                self.scene.removeCollisionObject('target', wait=True)
+                rospy.sleep(0.1)
+                print "deleting target...",
+
+            cylinder_name = "target"
+            cylinder_height = self.cylinder_height
+            # Add object to the planning scene for collision avoidance
+            while 'target' not in self.scene.getKnownCollisionObjects():
+                self.scene.addCylinder(cylinder_name, cylinder_height, self.cylinder_radius,
+                                       self.cylinder1[0], self.cylinder1[1], self.cylinder1[2] + cylinder_height / 2.0)
+                rospy.sleep(0.1)
+                print "adding target..."
+            print "cylinder_x: %f, cylinder_y: %f" % (self.cylinder1[0], self.cylinder1[1]),
 
         print "done"
 
     def reward_evaluation(self, w_last, step):
+
 
         rospy.wait_for_service('/gazebo/get_link_state')
         torso_pose = self.get_link_state("humanoid::Torso_link", "world").link_state.pose
@@ -199,101 +215,48 @@ class Baxter(object):
         # target_line_start-target_pos_start is the original position of human in /world frame
         self.target_line = np.dot(T[:3,:3], (self.target_line_start-self.target_pos_start).T).T + \
                                    [torso_pose.position.x, torso_pose.position.y, torso_pose.position.z] + \
-                                    [0, 0, -0.93]
-        if step == 1:
-            print("target_line:", self.target_line)
+                                    [0, 0, -0.43]
+        print self.target_line
 
         # Calculate writhe improvement
         rospy.sleep(0.01)
         right_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
-        # writhe = np.empty((len(self.target_line) - 2, 14))
-        # for idx_target in range(10):
-        #     for idx_robot in range(5, 12):
-        #         x1_right = self.target_line[idx_target].copy()
-        #         x2_right = self.target_line[idx_target + 1].copy()
-        #         if self.reset_mode == 1 or self.reset_mode == 2 or self.reset_mode == 4:
-        #             x1_right[1] -= 0.15
-        #             x2_right[1] -= 0.15
-        #         if self.reset_mode == 5:
-        #             x1_right[1] += 0.15
-        #             x2_right[1] += 0.15
-        #         writhe[idx_target, idx_robot - 5] = GLI(x1_right, x2_right,
-        #                                                 right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
-        #         x1_left = self.target_line[idx_target].copy()
-        #         x2_left = self.target_line[idx_target + 1].copy()
-        #         if self.reset_mode == 1 or self.reset_mode == 2 or self.reset_mode == 5:
-        #             x1_left[1] += 0.15
-        #             x2_left[1] += 0.15
-        #         if self.reset_mode == 4:
-        #             x1_left[1] -= 0.15
-        #             x2_left[1] -= 0.15
-        #         writhe[idx_target, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
-        #                                                     left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
-        #         # writhe[idx_target, idx_robot-5] = \
-        #         #     GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-        #         #         right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
-        #         # writhe[idx_target, idx_robot-5+7] = \
-        #         #     GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-        #         #         left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
-        # for idx_target in range(11, 21):
-        #     for idx_robot in range(5, 12):
-        #         writhe[idx_target-1, idx_robot-5] = \
-        #             GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-        #                 right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
-        #         writhe[idx_target-1, idx_robot-5+7] = \
-        #             GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-        #                 left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
-        # w_right_torso = np.abs(writhe[0:10, 0:7].flatten().sum())
-        # w_left_torso = np.abs(writhe[0:10, 7:14].flatten().sum())
-        # w_right_arm = np.abs(writhe[10:20, 0:7].flatten().sum())
-        # w_left_arm = np.abs(writhe[10:20, 7:14].flatten().sum())
-        # if self.reset_mode == 1 or self.reset_mode == 2:
-        #     w = w_right_torso + w_right_arm + w_left_torso + w_left_arm
-        # if self.reset_mode == 4 or self.reset_mode == 5:
-        #     w = w_right_torso + w_left_torso
-
-        writhe = np.empty((15, 14))
-        for idx_target in range(5):
+        writhe = np.empty((len(self.target_line) - 2, 14))
+        for idx_target in range(10):
             for idx_robot in range(5, 12):
                 x1_right = self.target_line[idx_target].copy()
                 x2_right = self.target_line[idx_target + 1].copy()
-                writhe[idx_target, idx_robot - 5] = GLI(x1_right, x2_right,
-                                                        right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
                 x1_right[1] -= 0.15
                 x2_right[1] -= 0.15
-                writhe[idx_target + 5, idx_robot - 5] = GLI(x1_right, x2_right,
-                                                            right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
-                x1_right[1] += 0.3
-                x2_right[1] += 0.3
-                writhe[idx_target + 10, idx_robot - 5] = GLI(x1_right, x2_right,
-                                                             right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
-                x1_left = self.target_line[idx_target+5].copy()
-                x2_left = self.target_line[idx_target+5 + 1].copy()
+                writhe[idx_target, idx_robot - 5] = GLI(x1_right, x2_right,
+                                                        right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
+                x1_left = self.target_line[idx_target].copy()
+                x2_left = self.target_line[idx_target + 1].copy()
+                x1_left[1] += 0.15
+                x2_left[1] += 0.15
                 writhe[idx_target, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
                                                             left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
-                x1_left[1] -= 0.15
-                x2_left[1] -= 0.15
-                writhe[idx_target + 5, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
-                                                                left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
-                x1_left[1] += 0.3
-                x2_left[1] += 0.3
-                writhe[idx_target + 10, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
-                                                                 left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
                 # writhe[idx_target, idx_robot-5] = \
                 #     GLI(self.target_line[idx_target], self.target_line[idx_target+1],
                 #         right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
                 # writhe[idx_target, idx_robot-5+7] = \
                 #     GLI(self.target_line[idx_target], self.target_line[idx_target+1],
                 #         left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
-        w_right1 = np.abs(writhe[0:5, 0:7].flatten().sum())
-        w_right2 = np.abs(writhe[5:10, 0:7].flatten().sum())
-        w_right3 = np.abs(writhe[10:15, 0:7].flatten().sum())
-        w_left1 = np.abs(writhe[0:5, 7:14].flatten().sum())
-        w_left2 = np.abs(writhe[5:10, 7:14].flatten().sum())
-        w_left3 = np.abs(writhe[10:15, 7:14].flatten().sum())
-        w = w_right1 + w_right2 + w_right3 + w_left1 + w_left2 + w_left3
-        reward = (w - w_last) * 50 #- 5 + w * 5
+        for idx_target in range(11, 21):
+            for idx_robot in range(5, 12):
+                writhe[idx_target-1, idx_robot-5] = \
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
+                writhe[idx_target-1, idx_robot-5+7] = \
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
+        w_right1 = np.abs(writhe[0:10, 0:7].flatten().sum())
+        w_right2 = np.abs(writhe[0:10, 7:14].flatten().sum())
+        w_left1 = np.abs(writhe[10:20, 0:7].flatten().sum())
+        w_left2 = np.abs(writhe[10:20, 7:14].flatten().sum())
+        w = w_right1 + w_right2 + w_left1 + w_left2
+        reward = (w - w_last) * 50 - 7.5 + w * 5
 
         # Prevent robot arms above humanoid arms
         height_human = self.target_line[4][2] + 0.02
@@ -306,17 +269,6 @@ class Baxter(object):
 
         # Detect collision
         collision = 0
-        # current_pos = self.target_line[4]
-        # target_move = math.hypot((current_pos[0] - self.target_pos_start[0]),
-        #                          (current_pos[1] - self.target_pos_start[1]))
-        #
-        # print("target_move:" , target_move)
-        # if target_move > 0.4:
-        #     # collision = 1   # collision
-        #     collision = 1
-        #     # reward = 0.0
-        # if target_move > 0.2 and step <= 2:
-        #     collision = -1  # model load error
 
         # Listen to collision information
         # msg = self.collision_getter.get_msg()
@@ -339,7 +291,7 @@ class Baxter(object):
         # target_line_start-target_pos_start is the original position of human in /world frame
         self.target_line = np.dot(T[:3, :3], (self.target_line_start - self.target_pos_start).T).T + \
                            [torso_pose.position.x, torso_pose.position.y, torso_pose.position.z] + \
-                           [0, 0, -0.93]
+                           [0, 0, -0.43]
 
         right_limb_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_limb_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
@@ -360,60 +312,21 @@ class Baxter(object):
         state3 = self.target_line.flatten()
 
         # ####################### writhe matrix ###########################
-        # writhe = np.empty((len(self.target_line) - 2, 14))
-        # for idx_target in range(10):
-        #     for idx_robot in range(5, 12):
-        #         writhe[idx_target, idx_robot-5] = \
-        #             GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-        #                 right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
-        #         writhe[idx_target, idx_robot-5+7] = \
-        #             GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-        #                 left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
-        # for idx_target in range(11, 21):
-        #     for idx_robot in range(5, 12):
-        #         writhe[idx_target-1, idx_robot-5] = \
-        #             GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-        #                 right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
-        #         writhe[idx_target-1, idx_robot-5+7] = \
-        #             GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-        #                 left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
-        writhe = np.empty((50, 14))
+        writhe = np.empty((len(self.target_line) - 2, 14))
         for idx_target in range(10):
             for idx_robot in range(5, 12):
-                x1_right = self.target_line[idx_target].copy()
-                x2_right = self.target_line[idx_target + 1].copy()
-                writhe[idx_target, idx_robot - 5] = GLI(x1_right, x2_right,
-                                                        right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
-                x1_right[1] -= 0.15
-                x2_right[1] -= 0.15
-                writhe[idx_target + 10, idx_robot - 5] = GLI(x1_right, x2_right,
-                                                             right_limb_pose[idx_robot],
-                                                             right_limb_pose[idx_robot + 1])[0]
-                x1_right[1] += 0.3
-                x2_right[1] += 0.3
-                writhe[idx_target + 20, idx_robot - 5] = GLI(x1_right, x2_right,
-                                                             right_limb_pose[idx_robot],
-                                                             right_limb_pose[idx_robot + 1])[0]
-                x1_left = self.target_line[idx_target].copy()
-                x2_left = self.target_line[idx_target + 1].copy()
-                writhe[idx_target, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
-                                                            left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
-                x1_left[1] -= 0.15
-                x2_left[1] -= 0.15
-                writhe[idx_target + 10, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
-                                                                 left_limb_pose[idx_robot],
-                                                                 left_limb_pose[idx_robot + 1])[0]
-                x1_left[1] += 0.3
-                x2_left[1] += 0.3
-                writhe[idx_target + 20, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
-                                                                 left_limb_pose[idx_robot],
-                                                                 left_limb_pose[idx_robot + 1])[0]
-        for idx_target in range(11, 21):
-            for idx_robot in range(5, 12):
-                writhe[idx_target+20-1, idx_robot-5] = \
+                writhe[idx_target, idx_robot-5] = \
                     GLI(self.target_line[idx_target], self.target_line[idx_target+1],
                         right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
-                writhe[idx_target+20-1, idx_robot-5+7] = \
+                writhe[idx_target, idx_robot-5+7] = \
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
+        for idx_target in range(11, 21):
+            for idx_robot in range(5, 12):
+                writhe[idx_target-1, idx_robot-5] = \
+                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
+                        right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
+                writhe[idx_target-1, idx_robot-5+7] = \
                     GLI(self.target_line[idx_target], self.target_line[idx_target+1],
                         left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
         state4 = writhe.flatten()
@@ -474,14 +387,27 @@ class Baxter(object):
 
         action_right = action[0:7]
         action_left= action[7:14]
-        # right arm
-        t1 = threading.Thread(target=movearm_job, args=(self.right_limb_interface, action_right))
-        t1.start()
-        # left arm
-        t2 = threading.Thread(target=movearm_job, args=(self.left_limb_interface, action_left))
-        t2.start()
-        t2.join()
-        t1.join()
+        if not self.use_moveit:
+            # right arm
+            t1 = threading.Thread(target=movearm_job, args=(self.right_limb_interface, action_right))
+            t1.start()
+            # left arm
+            t2 = threading.Thread(target=movearm_job, args=(self.left_limb_interface, action_left))
+            t2.start()
+            t2.join()
+            t1.join()
+        else:
+            # ########## moveit joint position move #####################
+            joint_goal = self.group.get_current_joint_values()
+            for i in range(7):
+                joint_goal[i] = joint_goal[i] + action[i]
+            try:
+                self.group.go(joint_goal, wait=True)
+            except Exception, e:
+                rospy.logerr('Error: %s', str(e))
+
+            # Calling ``stop()`` ensures that there is no residual movement
+            self.group.stop()
 
 
     def load_model(self, name, path, block_pose,
@@ -524,11 +450,14 @@ class Baxter(object):
             rospy.loginfo("Delete Model service call failed: {0}".format(e))
 
     def clear(self):
-        self.delete_model("humanoid")
+        self.delete_model("hugging_target")
         rospy.sleep(0.1)
 
 
 def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
+    drag = 1
+    if drag:
+        base_link = 'base'
     tip_link = limb + '_gripper'
     tip_frame = PyKDL.Frame()
     arm_chain = kdl_tree.getChain(base_link, tip_link)
@@ -546,9 +475,20 @@ def limbPose(kdl_tree, base_link, limb_interface, limb = 'right'):
         limb_link = ['base', 'torso', 'left_arm_mount', 'left_upper_shoulder', 'left_lower_shoulder',
                      'left_upper_elbow', 'left_lower_elbow', 'left_upper_forearm', 'left_lower_forearm',
                      'left_wrist', 'left_hand', 'left_gripper_base', 'left_gripper']
+    if drag:
+        if limb == 'right':
+            limb_link = ['torso', 'right_arm_mount', 'right_upper_shoulder', 'right_lower_shoulder',
+                          'right_upper_elbow', 'right_lower_elbow', 'right_upper_forearm', 'right_lower_forearm',
+                          'right_wrist', 'right_hand', 'right_gripper_base', 'right_gripper']
+        else:
+            limb_link = ['torso', 'left_arm_mount', 'left_upper_shoulder', 'left_lower_shoulder',
+                         'left_upper_elbow', 'left_lower_elbow', 'left_upper_forearm', 'left_lower_forearm',
+                         'left_wrist', 'left_hand', 'left_gripper_base', 'left_gripper']
     limb_frame = []
     limb_chain = []
     limb_pose = []
+    if drag:
+        limb_pose = [[0.0, 0.0, 0.0]]
     limb_fk = []
 
     for idx in xrange(arm_chain.getNrOfSegments()):

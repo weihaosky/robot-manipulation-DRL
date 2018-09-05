@@ -1,5 +1,5 @@
 from acnetwork import *
-from baxter_env import *
+from baxter_env_sitting import *
 import algo
 
 import rospy
@@ -148,7 +148,7 @@ if __name__ == '__main__':
             # plt.axis('off')
             # plt.savefig("heat_intermesh.png")
 
-            # ##################### drag the robot ##########################
+            # ##################### dragging test ##########################
             # command = raw_input("Do your want to drag the robot?\n")
             # if command == '1':
             #     IPython.embed()
@@ -170,6 +170,18 @@ if __name__ == '__main__':
             #     model_msg.pose.position.z = 0.93
             #     resp_set = env.set_model_state(model_msg)
             #     rospy.sleep(0.1)
+
+            # ##################### lifting test ##########################
+            # command = raw_input("Do your want to lift the robot?\n")
+            # if command == '1':
+            #     IPython.embed()
+            #     for i in range(900):
+            #         height = -0.5 + i / 900.0
+            #         env.set_model_config('baxter', 'robot_description', ['pedestal_fixed'], [height])
+            #         rospy.sleep(0.01)
+            #
+            #     for i in range(1000):
+            #         env.set_model_config('baxter', 'robot_description', ['pedestal_fixed'], [0.5])
 
             with torch.no_grad():
                 value, action, action_log_prob, action_entropy = \

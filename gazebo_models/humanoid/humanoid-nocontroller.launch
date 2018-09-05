@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+
+
+<group ns="humanoid">
+    <arg name="humanoid_urdf" default="humanoid-sitting.urdf"/>
+    <param name="robot_description" textfile="$(find baxter_hug)/gazebo_models/humanoid/$(arg humanoid_urdf)" />
+    <node name="urdf_spawner_humanoid" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" 
+        args="-urdf -model humanoid -param robot_description
+            -x 0.6
+            -J humanoid::LeftLeg_joint -1.57
+            -J humanoid::RightLeg_joint -1.57"/>
+
+</group>
+</launch>
