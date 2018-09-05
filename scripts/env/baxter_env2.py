@@ -164,7 +164,7 @@ class Baxter(object):
             if self.reset_mode == 4:
                 self.target_line_start = self.target_line_start - self.target_pos_start
                 self.target_pos_start[0] = 0.5
-                self.target_pos_start[1] = 1.05
+                self.target_pos_start[1] = 1.0
                 self.target_pos_start[2] = 1.3
                 self.target_line_start = self.target_line_start + self.target_pos_start
                 self.target_line = self.target_line_start
@@ -376,25 +376,47 @@ class Baxter(object):
         state3 = self.target_line.flatten()
 
         # ####################### writhe matrix ###########################
-        # writhe = np.empty((len(self.target_line) - 2, 14))
+        # writhe = np.empty((50, 14))
         # for idx_target in range(10):
         #     for idx_robot in range(5, 12):
-        #         writhe[idx_target, idx_robot-5] = \
-        #             GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-        #                 right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
-        #         writhe[idx_target, idx_robot-5+7] = \
-        #             GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-        #                 left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
+        #         x1_right = self.target_line[idx_target].copy()
+        #         x2_right = self.target_line[idx_target + 1].copy()
+        #         writhe[idx_target, idx_robot - 5] = GLI(x1_right, x2_right,
+        #                                                 right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
+        #         x1_right[1] -= 0.15
+        #         x2_right[1] -= 0.15
+        #         writhe[idx_target + 10, idx_robot - 5] = GLI(x1_right, x2_right,
+        #                                                      right_limb_pose[idx_robot],
+        #                                                      right_limb_pose[idx_robot + 1])[0]
+        #         x1_right[1] += 0.3
+        #         x2_right[1] += 0.3
+        #         writhe[idx_target + 20, idx_robot - 5] = GLI(x1_right, x2_right,
+        #                                                      right_limb_pose[idx_robot],
+        #                                                      right_limb_pose[idx_robot + 1])[0]
+        #         x1_left = self.target_line[idx_target].copy()
+        #         x2_left = self.target_line[idx_target + 1].copy()
+        #         writhe[idx_target, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
+        #                                                     left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
+        #         x1_left[1] -= 0.15
+        #         x2_left[1] -= 0.15
+        #         writhe[idx_target + 10, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
+        #                                                          left_limb_pose[idx_robot],
+        #                                                          left_limb_pose[idx_robot + 1])[0]
+        #         x1_left[1] += 0.3
+        #         x2_left[1] += 0.3
+        #         writhe[idx_target + 20, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
+        #                                                          left_limb_pose[idx_robot],
+        #                                                          left_limb_pose[idx_robot + 1])[0]
         # for idx_target in range(11, 21):
         #     for idx_robot in range(5, 12):
-        #         writhe[idx_target-1, idx_robot-5] = \
+        #         writhe[idx_target+20-1, idx_robot-5] = \
         #             GLI(self.target_line[idx_target], self.target_line[idx_target+1],
         #                 right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
-        #         writhe[idx_target-1, idx_robot-5+7] = \
+        #         writhe[idx_target+20-1, idx_robot-5+7] = \
         #             GLI(self.target_line[idx_target], self.target_line[idx_target+1],
         #                 left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
-        writhe = np.empty((50, 14))
-        for idx_target in range(10):
+        writhe = np.empty((15, 14))
+        for idx_target in range(5):
             for idx_robot in range(5, 12):
                 x1_right = self.target_line[idx_target].copy()
                 x2_right = self.target_line[idx_target + 1].copy()
@@ -402,36 +424,28 @@ class Baxter(object):
                                                         right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[0]
                 x1_right[1] -= 0.15
                 x2_right[1] -= 0.15
+                writhe[idx_target + 5, idx_robot - 5] = GLI(x1_right, x2_right,
+                                                            right_limb_pose[idx_robot], right_limb_pose[idx_robot + 1])[
+                    0]
+                x1_right[1] += 0.3
+                x2_right[1] += 0.3
                 writhe[idx_target + 10, idx_robot - 5] = GLI(x1_right, x2_right,
                                                              right_limb_pose[idx_robot],
                                                              right_limb_pose[idx_robot + 1])[0]
-                x1_right[1] += 0.3
-                x2_right[1] += 0.3
-                writhe[idx_target + 20, idx_robot - 5] = GLI(x1_right, x2_right,
-                                                             right_limb_pose[idx_robot],
-                                                             right_limb_pose[idx_robot + 1])[0]
-                x1_left = self.target_line[idx_target].copy()
-                x2_left = self.target_line[idx_target + 1].copy()
+                x1_left = self.target_line[idx_target + 5].copy()
+                x2_left = self.target_line[idx_target + 5 + 1].copy()
                 writhe[idx_target, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
                                                             left_limb_pose[idx_robot], left_limb_pose[idx_robot + 1])[0]
                 x1_left[1] -= 0.15
                 x2_left[1] -= 0.15
+                writhe[idx_target + 5, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
+                                                                left_limb_pose[idx_robot],
+                                                                left_limb_pose[idx_robot + 1])[0]
+                x1_left[1] += 0.3
+                x2_left[1] += 0.3
                 writhe[idx_target + 10, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
                                                                  left_limb_pose[idx_robot],
                                                                  left_limb_pose[idx_robot + 1])[0]
-                x1_left[1] += 0.3
-                x2_left[1] += 0.3
-                writhe[idx_target + 20, idx_robot - 5 + 7] = GLI(x1_left, x2_left,
-                                                                 left_limb_pose[idx_robot],
-                                                                 left_limb_pose[idx_robot + 1])[0]
-        for idx_target in range(11, 21):
-            for idx_robot in range(5, 12):
-                writhe[idx_target+20-1, idx_robot-5] = \
-                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-                        right_limb_pose[idx_robot], right_limb_pose[idx_robot+1])[0]
-                writhe[idx_target+20-1, idx_robot-5+7] = \
-                    GLI(self.target_line[idx_target], self.target_line[idx_target+1],
-                        left_limb_pose[idx_robot], left_limb_pose[idx_robot+1])[0]
         state4 = writhe.flatten()
 
         # ############################### interaction mesh ##################################

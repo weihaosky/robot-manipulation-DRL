@@ -212,23 +212,25 @@ if __name__ == '__main__':
         print("w:%f, max_w:%f" % (w, max_w))
         Evaluation.append(copy.deepcopy(evaluation))
 
+        file_save2 = open(record_path + 'test.pkl', 'wb')
+        pickle.dump(Evaluation, file_save2)
+        file_save2.close()
+
         if episode_num % 100 == 0:
             w_count = 0
             maxw_count = 0
-            eva = np.asarray(Evaluation)
-            for i in range(len(eva)):
-                if eva[i][0] > 1.5:
-                    w_count += 1
-                if eva[i][1] > 1.5:
-                    maxw_count += 1
-            rw = w_count / 100.0
-            rmaxw = maxw_count / 100.0
-            print("rw:", rw)
-            print("rmaxw:", rmaxw)
+            # eva = np.asarray(Evaluation)
+            # for i in range(len(eva)):
+            #     if eva[i][0] > 1.5:
+            #         w_count += 1
+            #     if eva[i][1] > 1.5:
+            #         maxw_count += 1
+            # rw = w_count / 100.0
+            # rmaxw = maxw_count / 100.0
+            # print("rw:", rw)
+            # print("rmaxw:", rmaxw)
 
-            file_save2 = open(record_path + 'test.pkl', 'wb')
-            pickle.dump(Evaluation, file_save2)
-            file_save2.close()
+
 
 
 
