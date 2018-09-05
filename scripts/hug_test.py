@@ -98,9 +98,11 @@ if __name__ == '__main__':
     while not rospy.is_shutdown() and episode_num <= 500:
         episode_num += 1
         env.reset(episode_num, collision)
+        ws = []
         # Calculate writhe before this episode
         _, w, collision = env.reward_evaluation(0, 0)
         max_w = w
+        ws.append(w)
         done = False
         if use_lstm:
             agent.actor_critic.cx = Variable(torch.zeros(1, agent.actor_critic.lstm_size))
@@ -191,6 +193,7 @@ if __name__ == '__main__':
             reward, w, collision = env.reward_evaluation(w, step)
             print("reward:%f" % reward, "w:%f" % w)
             max_w = max(max_w, w)
+            ws.append(w)
 
             if collision == 1:
                 print "collision!!!!!!!!!!!!!!!!!!!!!!!"
@@ -205,7 +208,7 @@ if __name__ == '__main__':
             episode_num -= 1
             continue
 
-        evaluation = [w, max_w]
+        evaluation = [w, max_w, ws]
         print("w:%f, max_w:%f" % (w, max_w))
         Evaluation.append(copy.deepcopy(evaluation))
 
