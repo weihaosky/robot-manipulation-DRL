@@ -1,5 +1,5 @@
 from acnetwork import *
-from baxter_env_sitting import *
+from env.baxter_env_noisy import *
 import algo
 
 import rospy
