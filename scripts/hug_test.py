@@ -1,5 +1,5 @@
 from acnetwork import *
-from env.baxter_env_noisy import *
+from env.baxter_env2 import *
 import algo
 
 import rospy
@@ -14,7 +14,7 @@ import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from visualization_msgs.msg import Marker
+from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs import msg as geom_msg
 
 
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     buffer = Buffer()
 
     # Save the training models
-    model_path = "./model_baxter_net/clip0.2reward-1.5/"
+    model_path = "./model_baxter_net/horizontal/"
     if not os.path.exists(model_path):
         os.makedirs(model_path)
 
@@ -123,8 +123,8 @@ if __name__ == '__main__':
             # marker.header.stamp = rospy.Time.now()
             # marker.scale.x = 0.002
             # marker.scale.y = 0.002
-            # marker.color.b = 0.74100
-            # marker.color.g = 0.44700
+            # marker.color.r = 255/255.0
+            # marker.color.g = 167/255.0
             # marker.color.a = 1.0
             # marker.pose.position = geom_msg.Point(0, 0, 0)
             # marker.pose.orientation = geom_msg.Quaternion(0, 0, 0, 1)
@@ -135,6 +135,22 @@ if __name__ == '__main__':
             #                           geom_msg.Point(mesh[1][i][0], mesh[1][i][1], mesh[1][i][2])])
             # marker.lifetime = rospy.Duration()
             # markerPub.publish(marker)
+            #
+            # publisher_markerarray = rospy.Publisher('visualization_marker_array', Marker, latch=True, queue_size=10)
+            # marker2 = Marker(type=Marker.SPHERE_LIST, ns='baxter_hug', action=Marker.ADD)
+            # marker2.header.frame_id = 'base'
+            # marker.header.stamp = rospy.Time.now()
+            # marker2.scale.x = 0.05
+            # marker2.scale.y = 0.05
+            # marker2.scale.z = 0.05
+            # marker2.color.r = 0
+            # marker2.color.g = 1
+            # marker2.color.b = 0
+            # marker2.color.a = 1.0
+            # marker2.points = []
+            # for point in env.graph_points:
+            #     marker2.points.extend([geom_msg.Point(point[0], point[1], point[2])])
+            # publisher_markerarray.publish(marker2)
             # iii = raw_input("Please record the graph\n")
 
             # ###################### heat_map evolution ######################

@@ -98,8 +98,8 @@ class Baxter(object):
 
         right_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_limb_pose, _ = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')
-        graph_points = np.concatenate((right_limb_pose[5:], left_limb_pose[5:], self.target_line_start), 0)
-        self.triangulation = Delaunay(graph_points)
+        self.graph_points = np.concatenate((right_limb_pose[5:], left_limb_pose[5:], self.target_line_start), 0)
+        self.triangulation = Delaunay(self.graph_points)
 
 
     def reset(self, episode_num, collision):
