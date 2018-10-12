@@ -1,5 +1,6 @@
 # robot-manipulation-DRL
-A PyTorch implementation of reinforcement learning methods (A2C, PPO) in robot manipulation tasks. 
+
+This is a PyTorch implementation of reinforcement learning methods (A2C, PPO) in robot manipulation tasks. 
 
 For now, the task is robot holding. The robot used is Baxter and the simulation environment is Gazebo.
 
@@ -9,9 +10,6 @@ For now, the task is robot holding. The robot used is Baxter and the simulation 
 #
 1. Run simulation environment: 
 
-Install baxter simulator as: http://sdk.rethinkrobotics.com/wiki/Simulator_Installation
-
-Then
 ```
 cd catkin_ws
 . ./baxter.sh sim
@@ -25,15 +23,34 @@ rosrun rqt_gui rqt_gui
 publish to topic "/humanoid/left_joint_position_controller/command" 0.125*sin(i/200)+0.125
 ```
 
-Requirements:
+3. Training
+```
+cd robot-manipulation-DRL
+python scripts/hug_main.py --algo 'a2c'
 
-gazebo-plugins:
+```
+
+3. Test
+```
+cd robot-manipulation-DRL
+python scripts/hug_test.py
+
+```
+
+###Requirements:
+
+* baxter simulator:
+
+Install baxter simulator as: http://sdk.rethinkrobotics.com/wiki/Simulator_Installation
+
+
+* gazebo-plugins:
     (seems useless)
 ```
 git clone https://github.com/roboticsgroup/roboticsgroup_gazebo_plugins.git
 catkin_make --pkg roboticsgroup_gazebo_plugins
 ```
-for indigo:
+* For indigo:
 ```
 git clone https://github.com/ros-controls/ros_controllers.git
 git checkout indigo-devel
@@ -50,3 +67,6 @@ modify joint_position_controller.cpp:
 catkin_make --pkg velocity_controllers
 ```
 
+### Reference:
+https://github.com/openai/baselines  
+https://github.com/ikostrikov/pytorch-a2c-ppo-acktr
