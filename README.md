@@ -1,15 +1,24 @@
 # robot-manipulation-DRL
-Address robot manipulation problem using deep reinforcement learning
+A PyTorch implementation of reinforcement learning methods (A2C, PPO) in robot manipulation tasks. 
+
+For now, the task is robot holding. The robot used is Baxter and the simulation environment is Gazebo.
+
+<img src="http://ww1.sinaimg.cn/large/b4c48f13gy1fw5p4x82aij20jb0jhk1x.jpg" width = "300" align=center />
 
 
-1. Run simulation environment:
+#
+1. Run simulation environment: 
+
+Install baxter simulator as: http://sdk.rethinkrobotics.com/wiki/Simulator_Installation
+
+Then
 ```
 cd catkin_ws
 . ./baxter.sh sim
 roslaunch baxter_gazebo baxter_world.launch
 ```
 
-2. load humanoid medel:
+2. Load humanoid model:
 ```
 roslaunch baxter_hug humanoid.launch 
 rosrun rqt_gui rqt_gui

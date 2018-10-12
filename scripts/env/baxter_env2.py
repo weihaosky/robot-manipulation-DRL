@@ -164,8 +164,8 @@ class Baxter(object):
             if self.reset_mode == 4:
                 self.target_line_start = self.target_line_start - self.target_pos_start
                 self.target_pos_start[0] = 0.5
-                self.target_pos_start[1] = 1.0
-                self.target_pos_start[2] = 1.3
+                self.target_pos_start[1] = 0.9
+                self.target_pos_start[2] = 1.35
                 self.target_line_start = self.target_line_start + self.target_pos_start
                 self.target_line = self.target_line_start
                 print "load gazebo model"
@@ -178,7 +178,7 @@ class Baxter(object):
                 humanoid_pose.orientation.y = quaternion0[1]
                 humanoid_pose.orientation.z = quaternion0[2]
                 humanoid_pose.orientation.w = quaternion0[3]
-                resp = self.load_model("humanoid", "humanoid/humanoid-static-right.urdf", humanoid_pose, type="urdf")
+                resp = self.load_model("humanoid", "humanoid/humanoid-stout-noright.urdf", humanoid_pose, type="urdf")
                 rospy.sleep(0.1)
 
             if self.reset_mode == 5:
