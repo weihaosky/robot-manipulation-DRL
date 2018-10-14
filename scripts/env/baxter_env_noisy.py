@@ -291,7 +291,7 @@ class Baxter(object):
         self.target_line = np.dot(T[:3, :3], (self.target_line_start - self.target_pos_start).T).T + \
                            [torso_pose.position.x, torso_pose.position.y, torso_pose.position.z] + \
                            [0, 0, -0.93]
-        self.target_line += np.random.normal(0, 0.1, [22,3])
+        #self.target_line += np.random.normal(0, 1.0, [22,3])
 
         right_limb_pose, right_joint_pos = limbPose(self.kdl_tree, self.base_link, self.right_limb_interface, 'right')
         left_limb_pose, left_joint_pos = limbPose(self.kdl_tree, self.base_link, self.left_limb_interface, 'left')

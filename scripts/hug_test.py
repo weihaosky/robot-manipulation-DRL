@@ -70,7 +70,11 @@ if __name__ == '__main__':
     buffer = Buffer()
 
     # Save the training models
+<<<<<<< Updated upstream
     model_path = "./model_baxter_net/horizontal/"
+=======
+    model_path = "./model_baxter_net/clip0.2reward-1.5movinghuman1/"
+>>>>>>> Stashed changes
     if not os.path.exists(model_path):
         os.makedirs(model_path)
 
@@ -95,7 +99,7 @@ if __name__ == '__main__':
 
     episode_num = 0
     collision = 0
-    while not rospy.is_shutdown() and episode_num <= 500:
+    while not rospy.is_shutdown() and episode_num <= 100:
         episode_num += 1
         env.reset(episode_num, collision)
         ws = []
