@@ -93,7 +93,7 @@ class Baxter(object):
 
     def reset(self, episode_num, collision):
         print "Resetting Baxter..."
-        if episode_num == 1:
+        if 1:
             self.delete_model("humanoid")
             rospy.sleep(0.1)
 
@@ -124,8 +124,8 @@ class Baxter(object):
         # t01.join()
 
         # ###################### Reset hugging target ##########################
-        self.reset_mode = 4 #np.random.choice([1, 2, 4, 5])
-        if episode_num == 1:
+        self.reset_mode = np.random.choice([1, 2, 4, 5])
+        if 1:
             if self.reset_mode == 1 or self.reset_mode == 2:
                 self.target_line_start = self.target_line_start - self.target_pos_start
                 self.target_pos_start[0] = random.uniform(0.4, 0.8)
@@ -178,7 +178,7 @@ class Baxter(object):
                 humanoid_pose.orientation.y = quaternion0[1]
                 humanoid_pose.orientation.z = quaternion0[2]
                 humanoid_pose.orientation.w = quaternion0[3]
-                resp = self.load_model("humanoid", "humanoid/humanoid-stout-noright.urdf", humanoid_pose, type="urdf")
+                resp = self.load_model("humanoid", "humanoid/humanoid-static-right.urdf", humanoid_pose, type="urdf")
                 rospy.sleep(0.1)
 
             if self.reset_mode == 5:

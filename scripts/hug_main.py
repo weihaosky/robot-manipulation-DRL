@@ -1,5 +1,5 @@
 from acnetwork import *
-from baxter_env2 import *
+from env.baxter_env2 import *
 import algo
 
 import sys
