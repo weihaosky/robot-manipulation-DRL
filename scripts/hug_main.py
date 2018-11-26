@@ -105,7 +105,7 @@ if __name__ == '__main__':
         file_save.close()
 
     collision = 0
-    while not rospy.is_shutdown() and episode_num <= 2000:
+    while not rospy.is_shutdown() and episode_num <= 5000:
 
         start_time = time.time()    # timing for one episode
         episode_num += 1
