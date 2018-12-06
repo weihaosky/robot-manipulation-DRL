@@ -5,20 +5,31 @@ import sys, os, inspect
 import copy
 import rospy
 
-# =========== iksolver
+# =========== iksolver + collision checking
 import baxter_interface
 import PyKDL
-from urdf_parser_py.urdf import URDF
 from baxter_kdl.kdl_kinematics import KDLKinematics
 from baxter_kdl.kdl_parser import kdl_tree_from_urdf_model
 from urdf_parser_py.urdf import URDF
 from tf import transformations
-from gazebo_msgs.srv import GetModelState, GetLinkState
+from gazebo_msgs.srv import GetModelState, GetLinkState, SetModelConfiguration
 import moveit_commander
+from moveit_msgs.srv import GetStateValidityRequest, GetStateValidity
+from moveit_msgs.msg import RobotState
+from sensor_msgs.msg import JointState
+from geometry_msgs.msg import Pose
 import moveit_python
-import moveit_msgs
-import geometry_msgs
-from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
+
+# ========= movement
+import actionlib
+import threading
+from control_msgs.msg import (
+    FollowJointTrajectoryAction,
+    FollowJointTrajectoryGoal,
+)
+from trajectory_msgs.msg import (
+    JointTrajectoryPoint,
+)
 
 # ======= tools
 import IPython
@@ -36,9 +47,25 @@ class IKsolver():
         self._base_link = self._baxter.get_root()
         self._tip_link = limb + '_gripper'
         self.solver = KDLKinematics(self._baxter, self._base_link, self._tip_link)
+        self.rs = RobotState()
+        self.rs.joint_state.name = ['right_s0', 'right_s1', 'right_e0', 'right_e1',
+                                    'right_w0', 'right_w1', 'right_w2']
+        self.rs.joint_state.position = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
+        # Moveit group setup
+        moveit_commander.roscpp_initialize(sys.argv)
+        self.robot = moveit_commander.RobotCommander()
+        self.scene = moveit_python.PlanningSceneInterface(self.robot.get_planning_frame())
+        # self.scene = moveit_commander.PlanningSceneInterface()
+        self.group_name = "right_arm"
+        self.group = moveit_commander.MoveGroupCommander(self.group_name)
+
+        # service
+        self.set_model_config = rospy.ServiceProxy('/gazebo/set_model_configuration', SetModelConfiguration)
         self.get_link_state = rospy.ServiceProxy("/gazebo/get_link_state", GetLinkState)
+        self.sv_srv = rospy.ServiceProxy('/check_state_validity', GetStateValidity)
 
+        # human target
         self.target_pos_start = np.asarray([0.5, 0, -0.93])  # robot /base frame, z = -0.93 w.r.t /world frame
         self.target_line_start = np.empty([22, 3], float)
         for i in range(11):
@@ -48,21 +75,55 @@ class IKsolver():
                         np.asarray([0, 0.5, 1.3]) - np.asarray([0, -0.5, 1.3])) / 10 * i
         self.target_line = self.target_line_start
 
-    def forward(self, joint_angles):
+    def reset(self):
+        # ================reset baxter joint position=================
+        # print("Resetting Baxter...")
+        # cmd = dict()
+        # start_point_right = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+        # for i, joint in enumerate(self._right_limb_interface.joint_names()):
+        #     cmd[joint] = start_point_right[i]
+        # self._right_limb_interface.set_joint_positions(cmd, raw=False)
+        # self.set_model_config('baxter', 'robot_description',
+        #                       ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2'],
+        #                       [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0])
+        # Moveit joint move
+        joint_goal = self.group.get_current_joint_values()
+        # s0, s1, e0, e1, w0, w1, w2
+        joint_goal[0] = -0.3
+        joint_goal[1] = 1.0
+        joint_goal[2] = 0.0
+        joint_goal[3] = 0.5
+        joint_goal[4] = 0.0
+        joint_goal[5] = 0.027
+        joint_goal[6] = 0.0
+        self.group.go(joint_goal, wait=True)
+        self.group.stop()
 
+        # ============add human target collision=============
+        if 'target' not in self.scene.getKnownCollisionObjects():
+            humanoid_pose = Pose()
+            humanoid_pose.position.x = 0.6
+            humanoid_pose.position.y = 0
+            humanoid_pose.position.z = -0.93
+            self.scene.addMesh("target", humanoid_pose, "gazebo_models/humanoid/stl/humanoid-fat.stl")
+            rospy.sleep(0.1)
+            print "adding target..."
+
+    def update_human(self):
         rospy.wait_for_service('/gazebo/get_link_state')
         torso_pose = self.get_link_state("humanoid::Torso_link", "world").link_state.pose
         T = transformations.quaternion_matrix([torso_pose.orientation.x,
-                                                  torso_pose.orientation.y,
-                                                  torso_pose.orientation.z,
-                                                  torso_pose.orientation.w])
+                                               torso_pose.orientation.y,
+                                               torso_pose.orientation.z,
+                                               torso_pose.orientation.w])
         # rotation in /world frame, which is [0, 0, -0.93] to /base frame
         # target_line_start-target_pos_start is the original position of human in /world frame
         self.target_line = np.dot(T[:3, :3], (self.target_line_start - self.target_pos_start).T).T + \
                            [torso_pose.position.x, torso_pose.position.y, torso_pose.position.z] + \
                            [0, 0, -0.93]
 
-        # Calculate writhe improvement
+    def forward(self, joint_angles):
+        # Calculate writhe
         right_limb_pose, _ = limbPose(self._kdl_tree, self._base_link, self._right_limb_interface, joint_angles)
         # left_limb_pose, _ = limbPose(self._kdl_tree, self._base_link, self._left_limb_interface, joint_angles, 'left')
         writhe = np.empty((len(self.target_line) - 2, 14))
@@ -96,6 +157,16 @@ class IKsolver():
         w = w_right1 + w_right2
 
         return w
+
+    def collision_check(self, joint_angles):
+        gsvr = GetStateValidityRequest()
+        self.rs.joint_state.position = joint_angles
+        gsvr.robot_state = self.rs
+        gsvr.group_name = self.group_name
+
+        result = self.sv_srv.call(gsvr)
+        return result
+
 
 
 
@@ -154,3 +225,70 @@ def limbPose(kdl_tree, base_link, limb_interface, joint_angles, limb = 'right'):
         limb_pose.append( [pos[0], pos[1], pos[2]] )
 
     return np.asarray(limb_pose), kdl_array
+
+
+class RobotMove():
+    def __init__(self):
+        # create our action server clients
+        self._left_client = actionlib.SimpleActionClient(
+            'robot/limb/left/follow_joint_trajectory',
+            FollowJointTrajectoryAction,
+        )
+        self._right_client = actionlib.SimpleActionClient(
+            'robot/limb/right/follow_joint_trajectory',
+            FollowJointTrajectoryAction,
+        )
+        self.set_model_config = rospy.ServiceProxy('/gazebo/set_model_configuration', SetModelConfiguration)
+
+        # verify joint trajectory action servers are available
+        l_server_up = self._left_client.wait_for_server(rospy.Duration(10.0))
+        r_server_up = self._right_client.wait_for_server(rospy.Duration(10.0))
+        if not l_server_up or not r_server_up:
+            msg = ("Action server not available."
+                   " Verify action server availability.")
+            rospy.logerr(msg)
+            rospy.signal_shutdown(msg)
+            sys.exit(1)
+        # create our goal request
+        self._l_goal = FollowJointTrajectoryGoal()
+        self._r_goal = FollowJointTrajectoryGoal()
+
+        # limb interface - current angles needed for start move
+        self._l_arm = baxter_interface.Limb('left')
+        self._r_arm = baxter_interface.Limb('right')
+
+
+    def reset(self):
+        start_point_right = [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0]
+        self.execute([np.array(start_point_right)])
+        # self.set_model_config('baxter', 'robot_description',
+        #                       ['right_s0', 'right_s1', 'right_e0', 'right_e1', 'right_w0', 'right_w1', 'right_w2'],
+        #                       [-0.3, 1.0, 0.0, 0.5, 0.0, 0.027, 0.0])
+
+    def add_point(self, positions, goal, time):
+        # creates a point in trajectory with time_from_start and positions
+        point = JointTrajectoryPoint()
+        point.positions = copy.copy(positions)
+        point.time_from_start = rospy.Duration(time)
+        goal.trajectory.points.append(point)
+
+
+    def execute(self, path):
+        self._l_goal = FollowJointTrajectoryGoal()
+        self._r_goal = FollowJointTrajectoryGoal()
+
+        self._r_goal.trajectory.joint_names = self._r_arm.joint_names()
+        self._l_goal.trajectory.joint_names = self._l_arm.joint_names()
+
+        for i in range(len(path)):
+            self.add_point(path[i].tolist(), self._r_goal, 0.1*i)
+
+        """
+        Sends FollowJointTrajectoryAction request
+        """
+        self._right_client.send_goal(self._r_goal)
+
+        self.wait()
+
+    def wait(self, timeout=15.0):
+        self._right_client.wait_for_result(timeout=rospy.Duration(timeout))

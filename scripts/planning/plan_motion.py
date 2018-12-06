@@ -1,12 +1,10 @@
-from iksolver import IKsolver
+from planning_scene import IKsolver, RobotMove
 
 import numpy as np
 import math
 import sys
 import copy
 import rospy
-
-
 
 # ======= ompl
 from ompl import base as ob
@@ -22,8 +20,8 @@ class MyStateSpace(ob.RealVectorStateSpace):
         self.ndof = ndof
         super(MyStateSpace, self).__init__(self.ndof)
 
-        lower_limits = [-3.059, -1.57079632679, -3.059, -0.05, -3.05417993878, -2.147, -1.70167993878]
-        upper_limits = [3.059, 2.094, 3.059, 2.618, 3.05417993878, 1.047, 1.70167993878]
+        lower_limits = [-1.7016, -2.147, -3.0541, -0.05, -3.059, -1.5707, -3.509]
+        upper_limits = [1.7016, 1.047, 3.0541, 2.618, 3.059, 2.094, 3.509]
 
         joint_bounds = ob.RealVectorBounds(self.ndof)
         for i in range(self.ndof):
@@ -50,12 +48,25 @@ class MyControlSpace(oc.RealVectorControlSpace):
 
 
 class MyStateValidityChecker(ob.StateValidityChecker):
-    def __init__(self, space_information):
+    def __init__(self, space_information, iksolver, ndof):
         super(MyStateValidityChecker, self).__init__(space_information)
         self.space_information = space_information
+        self.iksolver = iksolver
+        self.ndof = ndof
 
     def isValid(self, state):
-        return self.space_information.satisfiesBounds(state)
+        valid_bound = self.space_information.satisfiesBounds(state)
+        joint_angles = range(self.ndof)
+        for i in range(self.ndof):
+            joint_angles[i] = state[i]
+        valid_collision = self.iksolver.collision_check(joint_angles).valid
+        return (valid_bound and valid_collision)
+
+
+class MyOptimizationObjective(ob.PathLengthOptimizationObjective):
+    def __init__(self, si):
+        super(MyOptimizationObjective, self).__init__(si)
+        self.setCostThreshold(ob.Cost(10))
 
 
 class MyGoal(ob.Goal):
@@ -85,8 +96,8 @@ class MyGoalRegion(ob.GoalRegion):
         joints_diff = [abs(a - b) for a, b in zip(goal_state_vector, state_vector)]
         dis = np.asarray(joints_diff).sum()
 
-        w = self.iksolver.forward(state_vector)
-        dis = 0.8 - w
+        # w = self.iksolver.forward(state_vector)
+        # dis = 0.9 - w
 
         return dis
 
@@ -122,22 +133,30 @@ class MyRRT:
         si.setMinMaxControlDuration(1, 1)
         si.setDirectedControlSamplerAllocator(oc.DirectedControlSamplerAllocator(directedControlSamplerAllocator))
 
-        vc = MyStateValidityChecker(self.simple_setup.getSpaceInformation())
+        vc = MyStateValidityChecker(self.simple_setup.getSpaceInformation(), self.iksolver, ndof)
         self.simple_setup.setStateValidityChecker(vc)
+
+        ob = MyOptimizationObjective(self.simple_setup.getSpaceInformation())
+        self.simple_setup.setOptimizationObjective(ob)
 
         propagator = MyStatePropagator(self.simple_setup.getSpaceInformation(), ndof)
         self.simple_setup.setStatePropagator(propagator)
 
         # self.planner = oc.KPIECE1(self.simple_setup.getSpaceInformation())
         # self.planner.setup()
+        # ========= RRT planner ============
         self.planner = og.RRTstar(self.simple_setup.getSpaceInformation())
         p_goal = 0.0
         self.planner.setGoalBias(p_goal)
         self.planner.setRange(step_size)
 
+        IPython.embed()
+        # =========== PRM planner =============
+        # self.planner = og.PRM(self.simple_setup.getSpaceInformation())
+
         self.simple_setup.setPlanner(self.planner)
 
-    def solve(self, start, goal):
+    def solve(self, start, goal, timeout):
         self.simple_setup.setStartState(start)
         # mygoal = MyGoal(self.simple_setup.getSpaceInformation(), goal, self.ndof)
         mygoalregion = MyGoalRegion(self.simple_setup.getSpaceInformation(), goal, self.iksolver, self.ndof)
@@ -145,13 +164,13 @@ class MyRRT:
         # self.simple_setup.setGoalState(goal)
         self.simple_setup.setup()
 
-        if self.simple_setup.solve(10.0):
+        if self.simple_setup.solve(timeout):
             if self.simple_setup.haveExactSolutionPath():
                 print ("Exact Solution.")
-                return self.simple_setup.getSolutionPath().printAsMatrix()
+                return self.simple_setup.getSolutionPath()
             elif self.simple_setup.haveSolutionPath():
                 print ("Approximate Solution.")
-                return self.simple_setup.getSolutionPath().printAsMatrix()
+                return self.simple_setup.getSolutionPath()
         else:
             print ("No Solution Found.")
             return None
@@ -159,39 +178,50 @@ class MyRRT:
 
 if __name__ == '__main__':
 
-    rospy.init_node('baxter_hug')
-    #
-    # moveit_commander.roscpp_initialize(sys.argv)
-    # robot = moveit_commander.RobotCommander()
-    # scene = moveit_python.PlanningSceneInterface(robot.get_planning_frame())
-    # # self.scene = moveit_commander.PlanningSceneInterface()
-    # right_group_name = "right_arm"
-    # right_group = moveit_commander.MoveGroupCommander(right_group_name)
-
-    # start_pose = right_group.get_current_pose().pose
-    # goal_pose = copy.deepcopy(start_pose)
-    # goal_pose.position.x = start_pose.position.x + 0.1
-
-    # rrt = RRT("right")
-    #
-    # rrt.plan(pose_to_7x1_vector(start_pose),
-    #          pose_to_7x1_vector(goal_pose))
+    rospy.init_node('baxter_planning')
 
     ndof = 7
     limb = "right"
 
+    robot_move = RobotMove()
+
     iksolver = IKsolver(limb)
-    planner = MyRRT(ndof, iksolver)
+    iksolver.reset()
+    iksolver.update_human()
+
+    planner = MyRRT(ndof, iksolver, 0.1)
+
+    # get start joint state
+    joint_angles = iksolver._right_limb_interface.joint_angles()
+    joint_names = iksolver._right_limb_interface.joint_names()
+    start_vector = np.empty(ndof)
+    for idx, name in enumerate(joint_names):
+        start_vector[idx] = joint_angles[name]
     start = ob.State(planner.state_space)
     goal = ob.State(planner.state_space)
 
-    # Create a very simple problem.
-    start_vector = np.array([0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0])
-    goal_vector = np.array([-0.3, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    # start_vector = np.array([0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0])
+    # goal_vector = np.array([-0.3, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     for i in range(ndof):
         start[i] = start_vector[i]
-        goal[i] = goal_vector[i]
+        # goal[i] = goal_vector[i]
 
-    result = planner.solve(start, goal)
+    # ============== plan ===============
+    result_path = planner.solve(start, goal, 200)
+    path = []
+    joints = np.empty(ndof)
+    for i in range(result_path.getStateCount()):
+        for j in range(ndof):
+            joints[j] = result_path.getStates()[i][j]
+        path.append(copy.deepcopy(joints))
 
     IPython.embed()
+    if result_path != None:
+        robot_move.execute(path)
+
+
+
+
+
+
+
